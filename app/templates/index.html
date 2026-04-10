@@ -485,53 +485,86 @@
                     <br><br>
                     <h3>Interactive Maximum Likelihood Tree</h3>
                     
-                    <div style="margin-bottom: 10px; display: flex; gap: 10px;">
-                        <button type="button" onclick="iqViewer.setTreeType('rectangular');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Rectangular</button>
-                        <button type="button" onclick="iqViewer.setTreeType('circular');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Circular</button>
-                        <button type="button" onclick="iqViewer.setTreeType('radial');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Radial</button>
-                        <button type="button" onclick="iqViewer.setTreeType('diagonal');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Diagonal</button>
+                    <div style="margin-bottom: 15px; background-color: #F6EDFF; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+                        
+                        <div>
+                            <strong style="color: #5a2285; font-size: 14px;">Tree Layout:</strong><br>
+                            <div style="margin-top: 8px; display: flex; gap: 5px;">
+                                <button type="button" onclick="iqViewer.setTreeType('rectangular');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Rectangular</button>
+                                <button type="button" onclick="iqViewer.setTreeType('circular');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Circular</button>
+                                <button type="button" onclick="iqViewer.setTreeType('radial');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Radial</button>
+                                <button type="button" onclick="iqViewer.setTreeType('diagonal');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Diagonal</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <strong style="color: #5a2285; font-size: 14px;">Display Options:</strong><br>
+                            <div style="margin-top: 13px; display: flex; gap: 15px; font-size: 14px; color: #2d3748;">
+                                <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="iqViewer.alignLabels = this.checked; iqViewer.draw();" checked> Align Leaves (Cladogram)</label>
+                                <label><input type="checkbox" onchange="iqViewer.showBranchLengthLabels = this.checked; iqViewer.draw();"> Show Branch Lengths</label>
+                                <label><input type="checkbox" onchange="iqViewer.showInternalNodeLabels = this.checked; iqViewer.draw();"> Show Internal Nodes (Bootstraps)</label>
+                            </div>
+                        </div>
+
+                        <div style="margin-left: auto;">
+                            <button type="button" onclick="downloadTreeImage()" style="background-color: #4f46e5; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin: 0;">
+                                <i class="fa-solid fa-camera"></i> Save Image (PNG)
+                            </button>
+                        </div>
                     </div>
 
                     <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
 
                     <script>
-                        // Declare globally
                         var iqViewer; 
+
+                        // Global function to extract the canvas and save it as a PNG
+                        window.downloadTreeImage = function() {
+                            var canvas = document.querySelector('#iqtree-viewer canvas');
+                            if (canvas) {
+                                // Create a temporary canvas to draw a white background (so text is readable)
+                                var tempCanvas = document.createElement('canvas');
+                                tempCanvas.width = canvas.width;
+                                tempCanvas.height = canvas.height;
+                                var ctx = tempCanvas.getContext('2d');
+                                
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                                ctx.drawImage(canvas, 0, 0); // Draw original tree on top
+                                
+                                // Export and trigger download
+                                var link = document.createElement('a');
+                                link.download = 'PhyloDendron_ML_Tree.png';
+                                link.href = tempCanvas.toDataURL('image/png');
+                                link.click();
+                            }
+                        };
 
                         function initPhyloCanvas() {
                             var container = document.getElementById('iqtree-viewer');
                             
-                            // 1. Wait until the container is actually visible
                             if (container.offsetWidth === 0) {
                                 setTimeout(initPhyloCanvas, 100);
                                 return;
                             }
                             
-                            // 2. Try to draw the tree, and CATCH any errors
                             try {
                                 var treeString = {{ iqtree_newick | tojson | safe }};
                                 
-                                // THE FIX: Handle Webpack UMD Module Exports dynamically
                                 if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                                    // Handles nested default exports (jsDelivr/Unpkg)
                                     iqViewer = Phylocanvas.default.createTree('iqtree-viewer');
                                 } else if (typeof Phylocanvas.createTree === 'function') {
-                                    // Handles raw flattened scripts
                                     iqViewer = Phylocanvas.createTree('iqtree-viewer');
                                 } else if (typeof Phylocanvas.Tree === 'function') {
-                                    // Fallback to the raw Class Constructor
                                     iqViewer = new Phylocanvas.Tree('iqtree-viewer');
-                                } else {
-                                    throw new Error("Phylocanvas library loaded, but constructor not found.");
                                 }
                                 
-                                // Set properties BEFORE loading
+                                // Set initial properties
                                 iqViewer.setTreeType('rectangular');
-                                iqViewer.alignLabels = true; 
+                                iqViewer.alignLabels = true;  // Leaves aligned by default
                                 iqViewer.textSize = 14;
                                 iqViewer.lineWidth = 2;
                                 
-                                // Load the string and force a draw
                                 iqViewer.load(treeString);
                                 iqViewer.draw();
                                 
@@ -541,7 +574,6 @@
                             }
                         }
 
-                        // Start the process
                         initPhyloCanvas();
                     </script>
                 {% endif %}
