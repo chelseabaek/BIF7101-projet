@@ -449,7 +449,95 @@ def run_mpboot():
 
     except Exception as e:
         return render_template("index.html", error=str(e), active_tab=active_tab)
+
+# TOOL: Tree inference -> Maximum Likelihood (IQ-TREE)
+@app.route("/run_iqtree", methods=["POST"])
+def run_iqtree():
+    file = request.files.get("fasta_file")
+    active_tab = "ml"
+
+    # 1. Capture parameters from the UI
+    model = request.form.get("model", "MFP")
+    bootstraps = request.form.get("bootstraps", "1000")
+    alrt = request.form.get("alrt", "1000")
+
+    if not file or file.filename == "":
+        return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
+
+    # Use the iqtree3 binary installed via Docker
+    iqtree_exe = "iqtree3"
+
+    try:
+        fasta_text = file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".fasta") as temp_in:
+            temp_in.write(fasta_text)
+            temp_in_path = temp_in.name
         
+        output_prefix = temp_in_path + "_iq"
+
+        # 2. Build command dynamically
+        cmd = [iqtree_exe, "-s", temp_in_path, "-m", model, "-nt", "AUTO", "-pre", output_prefix]
+        
+        if bootstraps != "0":
+            cmd.extend(["-bb", bootstraps])
+        if alrt != "0":
+            cmd.extend(["-alrt", alrt])
+            
+        process = subprocess.run(cmd, capture_output=True, text=True)
+
+        if process.returncode != 0:
+            raise Exception(f"IQ-TREE Error: {process.stderr}")
+
+        treefile_path = output_prefix + ".treefile"
+        
+        if not os.path.exists(treefile_path):
+            raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
+
+        # 3. READ AND DRAW THE TREE
+        with open(treefile_path, "r") as f:
+            newick_str = f.read().strip()
+
+        tree = Phylo.read(StringIO(newick_str), "newick")
+        num_leaves = tree.count_terminals()
+        set_height = max(5, num_leaves * 1.0)
+        
+        fig = plt.figure(figsize=(10, set_height))
+        ax = fig.add_subplot(1, 1, 1)
+        Phylo.draw(tree, axes=ax, do_show=False)
+        
+        # Save image to uploads folder
+        image_name = f"tree_iqtree_{uuid.uuid4().hex[:6]}.png"
+        image_path = os.path.join(UPLOAD_FOLDER, image_name)
+        plt.savefig(image_path, bbox_inches="tight")
+        plt.close()
+
+        tree_image_iqtree = url_for("uploaded_file", filename=image_name)
+
+        # 4. PREPARE DOWNLOAD
+        safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
+        download_tree_name = f"{safe_original_name}_iqtree_{uuid.uuid4().hex[:6]}.tree"
+        download_tree_path = os.path.join(UPLOAD_FOLDER, download_tree_name)
+        
+        shutil.move(treefile_path, download_tree_path)
+        iqtree_download_file = url_for("uploaded_file", filename=download_tree_name)
+
+        # Cleanup intermediate files (IQ-TREE makes a lot of them!)
+        extensions = [".log", ".treefile", ".iqtree", ".ckp.gz", ".bionj", ".mldist", ".model.gz", ".splits.nex", ".contree"]
+        for ext in extensions:
+            if os.path.exists(output_prefix + ext):
+                os.remove(output_prefix + ext)
+        os.remove(temp_in_path)
+
+        return render_template(
+            "index.html", 
+            active_tab=active_tab, 
+            tree_image_iqtree=tree_image_iqtree,
+            iqtree_download_file=iqtree_download_file
+        )
+
+    except Exception as e:
+        return render_template("index.html", error=str(e), active_tab=active_tab)
+'''
 # TOOL: Tree inference -> Maximum Liklihoof (IQ-TREE)
 @app.route("/run_iqtree", methods=["POST"])
 def run_iqtree():
@@ -495,7 +583,7 @@ def run_iqtree():
 
     except Exception as e:
         return jsonify({"error": str(e)})
-    
+'''    
 # TOOL: Tree Inference -> Distance Methods (Neighbour-Joining and UPGMA)
 @app.route("/distance-methods", methods=["POST"])
 def NJ():
