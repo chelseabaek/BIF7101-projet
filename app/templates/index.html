@@ -556,6 +556,39 @@ window.onload = function() {
         });
     }
 };
+
+// MPBoot Preset Logic
+    window.applyMPBootPreset = function() {
+        var preset = document.getElementById("mpboot-preset").value;
+        var bb = document.getElementById("mpb-bb");
+        var n = document.getElementById("mpb-n");
+        var nstop = document.getElementById("mpb-nstop");
+
+        if (preset === "standard") {
+            bb.value = 1000;
+            n.value = 1000;
+            nstop.value = 100;
+        } else if (preset === "fast") {
+            bb.value = 0;      // Skip bootstraps for quick preview
+            n.value = 500;     // Halve the iterations
+            nstop.value = 50;  // Stop earlier
+        } else if (preset === "thorough") {
+            bb.value = 2000;   // Double bootstraps
+            n.value = 2000;    // Deeper search
+            nstop.value = 200; // More patient early-stop
+        }
+    };
+
+    // If the user manually types a number, switch dropdown to "Custom"
+    var mpbInputs = ["mpb-bb", "mpb-n", "mpb-nstop"];
+    mpbInputs.forEach(function(id) {
+        var el = document.getElementById(id);
+        if(el) {
+            el.addEventListener('input', function() {
+                document.getElementById("mpboot-preset").value = "custom";
+            });
+        }
+    });
 </script>
 
 </body>
