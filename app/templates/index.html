@@ -509,12 +509,21 @@
                             
                             // 2. Try to draw the tree, and CATCH any errors
                             try {
-                                // Save the tree string to a variable (and log it for debugging)
                                 var treeString = {{ iqtree_newick | tojson | safe }};
-                                console.log("SUCCESSFULLY LOADED STRING:", treeString);
                                 
-                                // Create the canvas
-                                iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                                // THE FIX: Handle Webpack UMD Module Exports dynamically
+                                if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+                                    // Handles nested default exports (jsDelivr/Unpkg)
+                                    iqViewer = Phylocanvas.default.createTree('iqtree-viewer');
+                                } else if (typeof Phylocanvas.createTree === 'function') {
+                                    // Handles raw flattened scripts
+                                    iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                                } else if (typeof Phylocanvas.Tree === 'function') {
+                                    // Fallback to the raw Class Constructor
+                                    iqViewer = new Phylocanvas.Tree('iqtree-viewer');
+                                } else {
+                                    throw new Error("Phylocanvas library loaded, but constructor not found.");
+                                }
                                 
                                 // Set properties BEFORE loading
                                 iqViewer.setTreeType('rectangular');
@@ -527,9 +536,8 @@
                                 iqViewer.draw();
                                 
                             } catch (err) {
-                                // If ANYTHING fails, print the exact error onto the screen!
                                 console.error("PHYLOCANVAS CRASHED: ", err);
-                                container.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "<br><br>Press F12 and click the 'Console' tab to see the full details.</div>";
+                                container.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
                             }
                         }
 
