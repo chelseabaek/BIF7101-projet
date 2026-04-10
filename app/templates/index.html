@@ -5,6 +5,7 @@
     <title>PhyloDendron</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p1...yourhash..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/phylocanvas@2.8.1/dist/phylocanvas.js"></script>
 </head>
 <body>
 
@@ -480,10 +481,32 @@
                     <p style="color:red;">{{ error }}</p>
                 {% endif %}
 
-                {% if tree_image_iqtree %}
+                {% if iqtree_newick %}
                     <br><br>
-                    <h3>Maximum Likelihood Tree</h3>
-                    <img src="{{ tree_image_iqtree }}" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
+                    <h3>Interactive Maximum Likelihood Tree</h3>
+                    
+                    <div style="margin-bottom: 10px; display: flex; gap: 10px;">
+                        <button type="button" onclick="iqViewer.setTreeType('rectangular');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Rectangular</button>
+                        <button type="button" onclick="iqViewer.setTreeType('circular');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Circular</button>
+                        <button type="button" onclick="iqViewer.setTreeType('radial');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Radial</button>
+                        <button type="button" onclick="iqViewer.setTreeType('diagonal');" style="padding: 6px 12px; font-size: 12px; background-color: #f3f4f6; color: #5a2285; border: 1px solid #cbd5e0;">Diagonal</button>
+                    </div>
+
+                    <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
+
+                    <script>
+                        // Create the viewer
+                        var iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                        
+                        // Load the raw Newick string passed from Python
+                        iqViewer.load('{{ iqtree_newick | safe }}');
+                        
+                        // Set default styling
+                        iqViewer.setTreeType('rectangular');
+                        iqViewer.alignLabels = true; // Aligns the sequence names neatly
+                        iqViewer.textSize = 14;
+                        iqViewer.lineWidth = 2;
+                    </script>
                 {% endif %}
 
                 {% if iqtree_download_file %}
