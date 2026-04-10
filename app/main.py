@@ -372,8 +372,8 @@ def run_mpboot():
 
     # 1. Capture the advanced parameters from the UI
     bootstraps = request.form.get("bootstraps", "1000")
-    iterations = request.form.get("iterations", "1000")
-    nstop = request.form.get("nstop", "100")
+    #iterations = request.form.get("iterations", "1000")
+    #nstop = request.form.get("nstop", "100")
 
     if not file or file.filename == "":
         return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
@@ -394,7 +394,7 @@ def run_mpboot():
         if bootstraps != "0":
             cmd.extend(["-bb", bootstraps])
             
-        cmd.extend(["-n", iterations, "-nstop", nstop])
+        #cmd.extend(["-n", iterations, "-nstop", nstop])
             
         process = subprocess.run(cmd, capture_output=True, text=True)
 
