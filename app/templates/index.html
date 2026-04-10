@@ -589,23 +589,21 @@ window.onload = function() {
     window.applyMPBootPreset = function() {
         var preset = document.getElementById("mpboot-preset").value;
         var bb = document.getElementById("mpb-bb");
-        var n = document.getElementById("mpb-n");
-        var nstop = document.getElementById("mpb-nstop");
 
         if (preset === "standard") {
-            bb.value = 1000; n.value = 1000; nstop.value = 100;
+            bb.value = 1000; 
         } else if (preset === "fast") {
-            bb.value = 0; n.value = 500; nstop.value = 50;
+            bb.value = 0; // Skips bootstraps for a quick tree
         } else if (preset === "thorough") {
-            bb.value = 2000; n.value = 2000; nstop.value = 200;
+            bb.value = 2000; 
         }
     };
 
     // MPBoot Custom Dropdown Trigger
-    ["mpb-bb", "mpb-n", "mpb-nstop"].forEach(function(id) {
-        var el = document.getElementById(id);
-        if(el) el.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
-    });
+    var mpbBb = document.getElementById("mpb-bb");
+    if(mpbBb) {
+        mpbBb.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
+    };
 
     // IQ-TREE Presets
     window.applyIQTreePreset = function() {
