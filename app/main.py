@@ -493,25 +493,9 @@ def run_iqtree():
         if not os.path.exists(treefile_path):
             raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
 
-        # 3. READ AND DRAW THE TREE
+        # 3. READ THE RAW NEWICK STRING
         with open(treefile_path, "r") as f:
             newick_str = f.read().strip()
-
-        tree = Phylo.read(StringIO(newick_str), "newick")
-        num_leaves = tree.count_terminals()
-        set_height = max(5, num_leaves * 1.0)
-        
-        fig = plt.figure(figsize=(10, set_height))
-        ax = fig.add_subplot(1, 1, 1)
-        Phylo.draw(tree, axes=ax, do_show=False)
-        
-        # Save image to uploads folder
-        image_name = f"tree_iqtree_{uuid.uuid4().hex[:6]}.png"
-        image_path = os.path.join(UPLOAD_FOLDER, image_name)
-        plt.savefig(image_path, bbox_inches="tight")
-        plt.close()
-
-        tree_image_iqtree = url_for("uploaded_file", filename=image_name)
 
         # 4. PREPARE DOWNLOAD
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
@@ -521,17 +505,18 @@ def run_iqtree():
         shutil.move(treefile_path, download_tree_path)
         iqtree_download_file = url_for("uploaded_file", filename=download_tree_name)
 
-        # Cleanup intermediate files (IQ-TREE makes a lot of them!)
+        # Cleanup intermediate files
         extensions = [".log", ".treefile", ".iqtree", ".ckp.gz", ".bionj", ".mldist", ".model.gz", ".splits.nex", ".contree"]
         for ext in extensions:
             if os.path.exists(output_prefix + ext):
                 os.remove(output_prefix + ext)
         os.remove(temp_in_path)
 
+        # PASS THE STRING TO THE TEMPLATE INSTEAD OF AN IMAGE URL
         return render_template(
             "index.html", 
             active_tab=active_tab, 
-            tree_image_iqtree=tree_image_iqtree,
+            iqtree_newick=newick_str,  # <--- This is the new variable!
             iqtree_download_file=iqtree_download_file
         )
 
