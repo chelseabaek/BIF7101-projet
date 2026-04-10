@@ -374,6 +374,67 @@
             <!-- Parsimony -->
             <div id="parsimony" class="tool">
                 <h2>Maximum Parsimony (MPBoot)</h2>
+                <p>Construct phylogenetic trees using fast maximum parsimony with bootstrap replicates.</p>
+                
+                <form id="parsimony-form" method="POST" action="/run_mpboot" enctype="multipart/form-data">
+                    <input type="hidden" name="active_tab" value="parsimony">
+                    <p id="instructions">Upload Aligned Sequences (FASTA):</p>
+                    <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
+                    <br><br>
+
+                    <div class="options-group" style="background-color: #F6EDFF; padding: 15px; border-radius: 8px; margin-bottom: 20px; width: 95%;">
+                        <label style="font-weight: bold; color: #5a2285;"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
+                        <select id="mpboot-preset" onchange="applyMPBootPreset()" style="padding: 5px; width: 100%; margin-top: 10px; font-size: 14px;">
+                            <option value="standard">Standard (Default Balance)</option>
+                            <option value="fast">Fast Preview (Quick Topology)</option>
+                            <option value="thorough">Thorough (Deep Tree Search)</option>
+                            <option value="custom">Custom (Manual Entry)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div class="options-group">
+                            <p id="instructions" title="-bb">Ultrafast Bootstraps:</p>
+                            <input type="number" id="mpb-bb" name="bootstraps" value="1000" min="0" style="padding: 5px; width: 120px;">
+                        </div>
+
+                        <div class="options-group">
+                            <p id="instructions" title="-n">Max Iterations:</p>
+                            <input type="number" id="mpb-n" name="iterations" value="1000" min="1" style="padding: 5px; width: 120px;">
+                        </div>
+
+                        <div class="options-group">
+                            <p id="instructions" title="-nstop">Early Stop:</p>
+                            <input type="number" id="mpb-nstop" name="nstop" value="100" min="1" style="padding: 5px; width: 120px;">
+                        </div>
+                    </div>
+                    <br><br>
+                    
+                    <button type="submit">
+                        Generate Parsimony Tree
+                    </button>
+                </form>
+
+                {% if error and active_tab == 'parsimony' %}
+                    <p style="color:red;">{{ error }}</p>
+                {% endif %}
+
+                {% if tree_image_mpboot %}
+                    <br><br>
+                    <h3>MPBoot Consensus Tree</h3>
+                    <img src="{{ tree_image_mpboot }}" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
+                {% endif %}
+
+                {% if mpboot_tree_file %}
+                    <br><br>
+                    <a href="{{ mpboot_tree_file }}" download>
+                        <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                    </a>
+                {% endif %}
+            </div>
+            <!--
+            <div id="parsimony" class="tool">
+                <h2>Maximum Parsimony (MPBoot)</h2>
                 <p>Construct phylogenetic trees using fast maximum parsimony with 1000 bootstrap replicates.</p>
                 
                 <form method="POST" action="/run_mpboot" enctype="multipart/form-data">
@@ -385,11 +446,6 @@
                         Generate Parsimony Tree
                     </button>
                 </form>
-            </div>
-            <!--
-            <div id="parsimony" class="tool">
-                <h2>Parsimony</h2>
-                <p>Coming soon.</p>
             </div>
             -->
 
