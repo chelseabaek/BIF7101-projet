@@ -497,7 +497,23 @@ def run_iqtree():
         with open(treefile_path, "r") as f:
             newick_str = f.read().strip()
 
-        # 4. PREPARE DOWNLOAD
+        # 4. EXTRACT THE BEST-FIT MODEL
+        best_model = model  # Default to whatever the user typed
+        iqtree_report = output_prefix + ".iqtree"
+        
+        # If the report exists, search it for the winning model
+        if os.path.exists(iqtree_report):
+            with open(iqtree_report, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if "Best-fit model according to BIC:" in line:
+                        # Grabs the model name (e.g. "GTR+F+I+G4")
+                        best_model = line.split(":")[1].strip()
+                        break
+                    elif "Best-fit model:" in line:
+                        # Fallback for some versions of IQ-TREE
+                        best_model = line.split("Best-fit model:")[1].split()[0]
+
+        # 5. PREPARE DOWNLOAD
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
         download_tree_name = f"{safe_original_name}_iqtree_{uuid.uuid4().hex[:6]}.tree"
         download_tree_path = os.path.join(UPLOAD_FOLDER, download_tree_name)
@@ -512,12 +528,13 @@ def run_iqtree():
                 os.remove(output_prefix + ext)
         os.remove(temp_in_path)
 
-        # PASS THE STRING TO THE TEMPLATE INSTEAD OF AN IMAGE URL
+        # PASS THE STRING AND THE MODEL TO THE TEMPLATE
         return render_template(
             "index.html", 
             active_tab=active_tab, 
-            iqtree_newick=newick_str,  # <--- This is the new variable!
-            iqtree_download_file=iqtree_download_file
+            iqtree_newick=newick_str,
+            iqtree_download_file=iqtree_download_file,
+            iqtree_best_model=best_model # <--- Pass the new variable here!
         )
 
     except Exception as e:
