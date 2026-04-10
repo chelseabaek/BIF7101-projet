@@ -454,7 +454,7 @@ def run_mpboot():
 @app.route("/run_iqtree", methods=["POST"])
 def run_iqtree():
     file = request.files.get("fasta_file")
-    active_tab = "ml"
+    active_tab = "maximum-likelihood"
 
     # 1. Capture parameters from the UI
     model = request.form.get("model", "MFP")
