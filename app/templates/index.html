@@ -495,30 +495,46 @@
                     <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
 
                     <script>
-                        // Declare globally so your HTML buttons can click it
+                        // Declare globally
                         var iqViewer; 
 
-                        function drawTreeWhenReady() {
+                        function initPhyloCanvas() {
                             var container = document.getElementById('iqtree-viewer');
                             
-                            // Check if the tab is ACTUALLY visible on the screen
-                            if (container.offsetWidth > 0) {
-                                // It is visible! Draw the tree safely.
-                                iqViewer = Phylocanvas.createTree('iqtree-viewer');
-                                iqViewer.load({{ iqtree_newick | tojson | safe }});
+                            // 1. Wait until the container is actually visible
+                            if (container.offsetWidth === 0) {
+                                setTimeout(initPhyloCanvas, 100);
+                                return;
+                            }
+                            
+                            // 2. Try to draw the tree, and CATCH any errors
+                            try {
+                                // Save the tree string to a variable (and log it for debugging)
+                                var treeString = {{ iqtree_newick | tojson | safe }};
+                                console.log("SUCCESSFULLY LOADED STRING:", treeString);
                                 
+                                // Create the canvas
+                                iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                                
+                                // Set properties BEFORE loading
                                 iqViewer.setTreeType('rectangular');
                                 iqViewer.alignLabels = true; 
                                 iqViewer.textSize = 14;
                                 iqViewer.lineWidth = 2;
-                            } else {
-                                // It is still hidden. Check again in 50 milliseconds!
-                                setTimeout(drawTreeWhenReady, 50);
+                                
+                                // Load the string and force a draw
+                                iqViewer.load(treeString);
+                                iqViewer.draw();
+                                
+                            } catch (err) {
+                                // If ANYTHING fails, print the exact error onto the screen!
+                                console.error("PHYLOCANVAS CRASHED: ", err);
+                                container.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "<br><br>Press F12 and click the 'Console' tab to see the full details.</div>";
                             }
                         }
 
-                        // Start the checking process
-                        drawTreeWhenReady();
+                        // Start the process
+                        initPhyloCanvas();
                     </script>
                 {% endif %}
 
