@@ -495,17 +495,22 @@
                     <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
 
                     <script>
-                        // Create the viewer
-                        var iqViewer = Phylocanvas.createTree('iqtree-viewer');
-                        
-                        // Load the raw Newick string passed from Python
-                        iqViewer.load('{{ iqtree_newick | safe }}');
-                        
-                        // Set default styling
-                        iqViewer.setTreeType('rectangular');
-                        iqViewer.alignLabels = true; // Aligns the sequence names neatly
-                        iqViewer.textSize = 14;
-                        iqViewer.lineWidth = 2;
+                        // Declare globally so your HTML buttons can click it
+                        var iqViewer; 
+
+                        // Wait 100ms for the tab to become visible before drawing!
+                        setTimeout(function() {
+                            iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                            
+                            // Safely encode the JSON string so quotes don't break the script
+                            iqViewer.load({{ iqtree_newick | tojson | safe }});
+                            
+                            // Set default styling
+                            iqViewer.setTreeType('rectangular');
+                            iqViewer.alignLabels = true; // Aligns the sequence names neatly
+                            iqViewer.textSize = 14;
+                            iqViewer.lineWidth = 2;
+                        }, 100);
                     </script>
                 {% endif %}
 
