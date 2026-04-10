@@ -484,6 +484,15 @@
                 {% if iqtree_newick %}
                     <br><br>
                     <h3>Interactive Maximum Likelihood Tree</h3>
+
+                    {% if iqtree_best_model %}
+                    <div style="background-color: #e2e8f0; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: inline-block;">
+                        <strong style="color: #5a2285;"><i class="fa-solid fa-dna"></i> Substitution Model Used:</strong>
+                        <span style="font-family: monospace; background: white; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e0; margin-left: 8px; font-size: 14px; color: #2d3748;">
+                            {{ iqtree_best_model }}
+                        </span>
+                    </div>
+                    {% endif %}
                     
                     <div style="margin-bottom: 15px; background-color: #F6EDFF; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
                         
