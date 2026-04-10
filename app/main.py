@@ -318,7 +318,7 @@ def align_clustalo():
         
     except Exception as e:
         return render_template("index.html", error=str(e), active_tab=active_tab)
-
+'''
 # TOOL: Tree Inference -> Parsimony (MPBoot)
 @app.route("/run_mpboot", methods=["POST"])
 def run_mpboot():
@@ -363,7 +363,93 @@ def run_mpboot():
 
     except Exception as e:
         return render_template("index.html", error=str(e), active_tab=active_tab)
-    
+'''
+# TOOL: Tree Inference -> Parsimony (MPBoot)
+@app.route("/run_mpboot", methods=["POST"])
+def run_mpboot():
+    file = request.files.get("fasta_file")
+    active_tab = "parsimony"
+
+    # 1. Capture the advanced parameters from the UI
+    bootstraps = request.form.get("bootstraps", "1000")
+    iterations = request.form.get("iterations", "1000")
+    nstop = request.form.get("nstop", "100")
+
+    if not file or file.filename == "":
+        return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
+
+    mpboot_exe = os.path.join(os.getcwd(), "mpboot") if os.path.exists(os.path.join(os.getcwd(), "mpboot")) else "mpboot"
+
+    try:
+        fasta_text = file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".fasta") as temp_in:
+            temp_in.write(fasta_text)
+            temp_in_path = temp_in.name
+        
+        output_prefix = temp_in_path + "_mpb"
+
+        # 2. Build command dynamically
+        cmd = [mpboot_exe, "-s", temp_in_path, "-pre", output_prefix]
+        
+        if bootstraps != "0":
+            cmd.extend(["-bb", bootstraps])
+            
+        cmd.extend(["-n", iterations, "-nstop", nstop])
+            
+        process = subprocess.run(cmd, capture_output=True, text=True)
+
+        if process.returncode != 0:
+            raise Exception(f"MPBoot Error: {process.stderr}")
+
+        treefile_path = output_prefix + ".treefile"
+        
+        if not os.path.exists(treefile_path):
+            raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
+
+        # 3. READ AND DRAW THE TREE
+        with open(treefile_path, "r") as f:
+            newick_str = f.read().strip()
+
+        tree = Phylo.read(StringIO(newick_str), "newick")
+        num_leaves = tree.count_terminals()
+        set_height = max(5, num_leaves * 1.0)
+        
+        fig = plt.figure(figsize=(10, set_height))
+        ax = fig.add_subplot(1, 1, 1)
+        Phylo.draw(tree, axes=ax, do_show=False)
+        
+        # Save the tree image to the uploads folder
+        image_name = f"tree_mpboot_{uuid.uuid4().hex[:6]}.png"
+        image_path = os.path.join(UPLOAD_FOLDER, image_name)
+        plt.savefig(image_path, bbox_inches="tight")
+        plt.close()
+
+        tree_image_mpboot = url_for("uploaded_file", filename=image_name)
+
+        # 4. PREPARE THE TREEFILE FOR DOWNLOAD
+        safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
+        download_tree_name = f"{safe_original_name}_mpboot_{uuid.uuid4().hex[:6]}.tree"
+        download_tree_path = os.path.join(UPLOAD_FOLDER, download_tree_name)
+        
+        shutil.move(treefile_path, download_tree_path)
+        mpboot_tree_file = url_for("uploaded_file", filename=download_tree_name)
+
+        # Cleanup intermediate files
+        for ext in [".log", ".iqtree", ".ckp.gz"]:
+            if os.path.exists(output_prefix + ext):
+                os.remove(output_prefix + ext)
+        os.remove(temp_in_path)
+
+        return render_template(
+            "index.html", 
+            active_tab=active_tab, 
+            tree_image_mpboot=tree_image_mpboot,
+            mpboot_tree_file=mpboot_tree_file
+        )
+
+    except Exception as e:
+        return render_template("index.html", error=str(e), active_tab=active_tab)
+        
 # TOOL: Tree inference -> Maximum Liklihoof (IQ-TREE)
 @app.route("/run_iqtree", methods=["POST"])
 def run_iqtree():
