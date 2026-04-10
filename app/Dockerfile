@@ -27,10 +27,10 @@ RUN wget https://github.com/iqtree/iqtree3/releases/download/v3.1.1/iqtree-3.1.1
     && mv iqtree-3.1.1-Linux/bin/* /usr/local/bin/ \
     && chmod +x /usr/local/bin/iqtree3
 
-# Download MPBoot v1.2
+# Download MPBoot v1.2 (Corrected path)
 RUN wget https://github.com/diepthihoang/mpboot/releases/download/v1.2/mpboot-avx-1.2-Linux.tar.gz \
     && tar -xvzf mpboot-avx-1.2-Linux.tar.gz \
-    && mv mpboot-avx-1.2-Linux/bin/* /usr/local/bin/ \
+    && mv mpboot-avx-1.2-Linux/mpboot-avx /usr/local/bin/mpboot \
     && chmod +x /usr/local/bin/mpboot
 
 WORKDIR /app
