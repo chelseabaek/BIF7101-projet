@@ -495,8 +495,30 @@
                     <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
 
                     <script>
-                        // Declare globally so the buttons above can control it
-                        var iqViewer;
+                        // Declare globally so your HTML buttons can click it
+                        var iqViewer; 
+
+                        function drawTreeWhenReady() {
+                            var container = document.getElementById('iqtree-viewer');
+                            
+                            // Check if the tab is ACTUALLY visible on the screen
+                            if (container.offsetWidth > 0) {
+                                // It is visible! Draw the tree safely.
+                                iqViewer = Phylocanvas.createTree('iqtree-viewer');
+                                iqViewer.load({{ iqtree_newick | tojson | safe }});
+                                
+                                iqViewer.setTreeType('rectangular');
+                                iqViewer.alignLabels = true; 
+                                iqViewer.textSize = 14;
+                                iqViewer.lineWidth = 2;
+                            } else {
+                                // It is still hidden. Check again in 50 milliseconds!
+                                setTimeout(drawTreeWhenReady, 50);
+                            }
+                        }
+
+                        // Start the checking process
+                        drawTreeWhenReady();
                     </script>
                 {% endif %}
 
