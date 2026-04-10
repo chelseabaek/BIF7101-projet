@@ -432,24 +432,67 @@
                     </a>
                 {% endif %}
             </div>
-            <!--
-            <div id="parsimony" class="tool">
-                <h2>Maximum Parsimony (MPBoot)</h2>
-                <p>Construct phylogenetic trees using fast maximum parsimony with 1000 bootstrap replicates.</p>
+
+            <!-- Maximum Likelihood -->
+            <div id="maximum-likelihood" class="tool">
+                <h2>Maximum Likelihood (IQ-TREE)</h2>
+                <p>IQ-TREE uses ModelFinder to pick the best substitution model and builds an ML tree.</p>
                 
-                <form method="POST" action="/run_mpboot" enctype="multipart/form-data">
-                    <input type="hidden" name="active_tab" value="parsimony">
+                <form id="iqtree-form" method="POST" action="/run_iqtree" enctype="multipart/form-data">
+                    <input type="hidden" name="active_tab" value="ml">
                     <p id="instructions">Upload Aligned Sequences (FASTA):</p>
                     <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
                     <br><br>
-                    <button type="submit">
-                        Generate Parsimony Tree
-                    </button>
-                </form>
-            </div>
-            -->
 
-            <!-- Maximum Likelihood -->
+                    <div class="options-group" style="background-color: #F6EDFF; padding: 15px; border-radius: 8px; margin-bottom: 20px; width: 95%;">
+                        <label style="font-weight: bold; color: #5a2285;"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
+                        <select id="iqtree-preset" onchange="applyIQTreePreset()" style="padding: 5px; width: 100%; margin-top: 10px; font-size: 14px;">
+                            <option value="standard">Standard (ModelFinder + 1000 UFBoot + 1000 SH-aLRT)</option>
+                            <option value="fast">Fast Search (Topology Only / No Bootstraps)</option>
+                            <option value="thorough">Thorough (Deep Bootstrapping)</option>
+                            <option value="custom">Custom (Manual Entry)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div class="options-group">
+                            <p id="instructions" title="-m">Substitution Model:</p>
+                            <input type="text" id="iq-m" name="model" value="MFP" style="padding: 5px; width: 120px;" placeholder="e.g. MFP, GTR+G">
+                        </div>
+
+                        <div class="options-group">
+                            <p id="instructions" title="-bb">Ultrafast Bootstraps:</p>
+                            <input type="number" id="iq-bb" name="bootstraps" value="1000" min="0" style="padding: 5px; width: 120px;">
+                        </div>
+
+                        <div class="options-group">
+                            <p id="instructions" title="-alrt">SH-aLRT Replicates:</p>
+                            <input type="number" id="iq-alrt" name="alrt" value="1000" min="0" style="padding: 5px; width: 120px;">
+                        </div>
+                    </div>
+                    <br><br>
+                    
+                    <button type="submit">Run IQ-TREE</button>
+                </form>
+
+                {% if error and active_tab == 'ml' %}
+                    <p style="color:red;">{{ error }}</p>
+                {% endif %}
+
+                {% if tree_image_iqtree %}
+                    <br><br>
+                    <h3>Maximum Likelihood Tree</h3>
+                    <img src="{{ tree_image_iqtree }}" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
+                {% endif %}
+
+                {% if iqtree_download_file %}
+                    <br><br>
+                    <a href="{{ iqtree_download_file }}" download>
+                        <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                    </a>
+                {% endif %}
+            </div>
+            <!--
             <div id="maximum-likelihood" class="tool">
                 <h2>Maximum Likelihood (IQ-TREE)</h2>
                 <p>IQ-TREE uses ModelFinder to pick the best substitution model and builds an ML tree.</p>
@@ -460,12 +503,6 @@
                     <br><br>
                     <button type="submit">Run IQ-TREE</button>
                 </form>
-            </div>
-            
-            <!--
-            <div id="maximum-likelihood" class="tool">
-                <h2>Maximum Likelihood</h2>
-                <p>Coming soon.</p>
             </div>
             -->
 
@@ -521,43 +558,33 @@ window.onload = function() {
     document.getElementById("{{ active_tab }}").classList.add('active');
     {% endif %}
 
-    var distanceForm = document.querySelector("#distance-form");
-    if (distanceForm) {
-        distanceForm.addEventListener("submit", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        });
-    }
+    // ----------------------------------------------------
+    // LOADING SPINNER LOGIC (Grouped for all tools)
+    // ----------------------------------------------------
+    var asyncForms = [
+        "#distance-form", 
+        "#mafft-form", 
+        "#clustalo-form", 
+        "#bayesian-inference-form", 
+        "#muscle-form",
+        "#parsimony-form",
+        "#iqtree-form"
+    ];
 
-    var mafftForm = document.querySelector("#mafft-form");
-    if (mafftForm) {
-        mafftForm.addEventListener("submit", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        });
-    }
+    asyncForms.forEach(function(formId) {
+        var form = document.querySelector(formId);
+        if (form) {
+            form.addEventListener("submit", function() {
+                document.getElementById("loading-overlay").style.display = "flex";
+            });
+        }
+    });
 
-    var clustaloForm = document.querySelector("#clustalo-form");
-    if (clustaloForm) {
-        clustaloForm.addEventListener("submit", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        });
-    }
-
-    var bayesianInferenceForm = document.querySelector("#bayesian-inference-form");
-    if (bayesianInferenceForm) {
-        bayesianInferenceForm.addEventListener("submit", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        });
-    }
-
-    var muscleForm = document.querySelector("#muscle-form");
-    if (muscleForm) {
-        muscleForm.addEventListener("submit", function() {
-            document.getElementById("loading-overlay").style.display = "flex";
-        });
-    }
-};
-
-// MPBoot Preset Logic
+    // ----------------------------------------------------
+    // MPBOOT & IQTREE PRESET LOGIC
+    // ----------------------------------------------------
+    
+    // MPBoot Presets
     window.applyMPBootPreset = function() {
         var preset = document.getElementById("mpboot-preset").value;
         var bb = document.getElementById("mpb-bb");
@@ -565,30 +592,42 @@ window.onload = function() {
         var nstop = document.getElementById("mpb-nstop");
 
         if (preset === "standard") {
-            bb.value = 1000;
-            n.value = 1000;
-            nstop.value = 100;
+            bb.value = 1000; n.value = 1000; nstop.value = 100;
         } else if (preset === "fast") {
-            bb.value = 0;      // Skip bootstraps for quick preview
-            n.value = 500;     // Halve the iterations
-            nstop.value = 50;  // Stop earlier
+            bb.value = 0; n.value = 500; nstop.value = 50;
         } else if (preset === "thorough") {
-            bb.value = 2000;   // Double bootstraps
-            n.value = 2000;    // Deeper search
-            nstop.value = 200; // More patient early-stop
+            bb.value = 2000; n.value = 2000; nstop.value = 200;
         }
     };
 
-    // If the user manually types a number, switch dropdown to "Custom"
-    var mpbInputs = ["mpb-bb", "mpb-n", "mpb-nstop"];
-    mpbInputs.forEach(function(id) {
+    // MPBoot Custom Dropdown Trigger
+    ["mpb-bb", "mpb-n", "mpb-nstop"].forEach(function(id) {
         var el = document.getElementById(id);
-        if(el) {
-            el.addEventListener('input', function() {
-                document.getElementById("mpboot-preset").value = "custom";
-            });
-        }
+        if(el) el.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
     });
+
+    // IQ-TREE Presets
+    window.applyIQTreePreset = function() {
+        var preset = document.getElementById("iqtree-preset").value;
+        var m = document.getElementById("iq-m");
+        var bb = document.getElementById("iq-bb");
+        var alrt = document.getElementById("iq-alrt");
+
+        if (preset === "standard") {
+            m.value = "MFP"; bb.value = 1000; alrt.value = 1000;
+        } else if (preset === "fast") {
+            m.value = "MFP"; bb.value = 0; alrt.value = 0;
+        } else if (preset === "thorough") {
+            m.value = "MFP"; bb.value = 2000; alrt.value = 2000; 
+        }
+    };
+
+    // IQ-TREE Custom Dropdown Trigger
+    ["iq-m", "iq-bb", "iq-alrt"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if(el) el.addEventListener('input', () => document.getElementById("iqtree-preset").value = "custom");
+    });
+};
 </script>
 
 </body>
