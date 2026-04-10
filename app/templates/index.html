@@ -517,27 +517,70 @@
 
                     <script>
                         var iqViewer; 
+                        
+                        // We declare this at the top so BOTH the viewer and exporter can use it
+                        var rawTreeString = {{ iqtree_newick | tojson | safe }};
 
-                        // Global function to extract the canvas and save it as a PNG
+                        // Global function to extract the canvas and save it as a High-Res PNG
                         window.downloadTreeImage = function() {
-                            var canvas = document.querySelector('#iqtree-viewer canvas');
-                            if (canvas) {
-                                // Create a temporary canvas to draw a white background (so text is readable)
-                                var tempCanvas = document.createElement('canvas');
-                                tempCanvas.width = canvas.width;
-                                tempCanvas.height = canvas.height;
-                                var ctx = tempCanvas.getContext('2d');
-                                
-                                ctx.fillStyle = '#FFFFFF';
-                                ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                                ctx.drawImage(canvas, 0, 0); // Draw original tree on top
-                                
-                                // Export and trigger download
-                                var link = document.createElement('a');
-                                link.download = 'PhyloDendron_ML_Tree.png';
-                                link.href = tempCanvas.toDataURL('image/png');
-                                link.click();
+                            
+                            // 1. Create a massive, invisible container for 4K rendering
+                            var hiddenContainer = document.createElement('div');
+                            hiddenContainer.id = "hidden-export-container";
+                            hiddenContainer.style.width = "3000px";
+                            hiddenContainer.style.height = "3000px";
+                            hiddenContainer.style.position = "absolute";
+                            hiddenContainer.style.left = "-9999px"; // Hide it way off-screen
+                            document.body.appendChild(hiddenContainer);
+
+                            // 2. Initialize a temporary viewer inside the hidden container
+                            var exportViewer;
+                            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+                                exportViewer = Phylocanvas.default.createTree('hidden-export-container');
+                            } else if (typeof Phylocanvas.createTree === 'function') {
+                                exportViewer = Phylocanvas.createTree('hidden-export-container');
+                            } else {
+                                exportViewer = new Phylocanvas.Tree('hidden-export-container');
                             }
+                            
+                            // 3. Copy the user's exact current layout...
+                            exportViewer.setTreeType(iqViewer.treeType);
+                            exportViewer.alignLabels = iqViewer.alignLabels;
+                            exportViewer.showBranchLengthLabels = iqViewer.showBranchLengthLabels;
+                            exportViewer.showInternalNodeLabels = iqViewer.showInternalNodeLabels;
+                            
+                            // ...But scale up the graphics for a 4K resolution!
+                            exportViewer.textSize = 28; 
+                            exportViewer.lineWidth = 4; 
+                            
+                            // 4. Load the tree data and draw
+                            exportViewer.load(rawTreeString);
+                            exportViewer.draw();
+
+                            // 5. Wait a fraction of a second for it to render, then export
+                            setTimeout(function() {
+                                var canvas = hiddenContainer.querySelector('canvas');
+                                if (canvas) {
+                                    var tempCanvas = document.createElement('canvas');
+                                    tempCanvas.width = canvas.width;
+                                    tempCanvas.height = canvas.height;
+                                    var ctx = tempCanvas.getContext('2d');
+                                    
+                                    // Add white background so it doesn't turn invisible in dark mode
+                                    ctx.fillStyle = '#FFFFFF';
+                                    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                                    ctx.drawImage(canvas, 0, 0);
+                                    
+                                    // Trigger download
+                                    var link = document.createElement('a');
+                                    link.download = 'PhyloDendron_HighRes_Tree.png';
+                                    link.href = tempCanvas.toDataURL('image/png', 1.0); // 1.0 = Max quality
+                                    link.click();
+                                }
+                                
+                                // 6. Destroy the hidden container so it doesn't break the page
+                                document.body.removeChild(hiddenContainer);
+                            }, 250);
                         };
 
                         function initPhyloCanvas() {
@@ -549,8 +592,6 @@
                             }
                             
                             try {
-                                var treeString = {{ iqtree_newick | tojson | safe }};
-                                
                                 if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
                                     iqViewer = Phylocanvas.default.createTree('iqtree-viewer');
                                 } else if (typeof Phylocanvas.createTree === 'function') {
@@ -559,13 +600,12 @@
                                     iqViewer = new Phylocanvas.Tree('iqtree-viewer');
                                 }
                                 
-                                // Set initial properties
                                 iqViewer.setTreeType('rectangular');
-                                iqViewer.alignLabels = true;  // Leaves aligned by default
+                                iqViewer.alignLabels = true;
                                 iqViewer.textSize = 14;
                                 iqViewer.lineWidth = 2;
                                 
-                                iqViewer.load(treeString);
+                                iqViewer.load(rawTreeString);
                                 iqViewer.draw();
                                 
                             } catch (err) {
