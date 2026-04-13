@@ -1,17 +1,16 @@
-from flask import Flask, render_template, request, Response, url_for, render_template, send_from_directory
-from Bio import Phylo, AlignIO
+from flask import Flask, render_template, request, Response, url_for, send_from_directory
+from Bio import Phylo, AlignIO, SeqIO
 from io import StringIO
 from werkzeug.utils import secure_filename
 from Bio.Phylo.TreeConstruction import DistanceMatrix, DistanceTreeConstructor
 
-import subprocess, threading
+import subprocess
 import tempfile
 import os
-import matplotlib
-import matplotlib.pyplot as plt
+import glob
+import re
 import uuid
 import shutil
-matplotlib.use("Agg")
 
 app = Flask(__name__)
 
@@ -25,100 +24,166 @@ def uploaded_file(filename):
 # TOOL: Other Tools -> Newick Tree Viewer
 @app.route("/", methods=["GET", "POST"])
 def tree_viewer():
-    tree_image = None
     tree_error = None
+    tree_newick = None
+    newick_input = ""
+    newick_branch_color = "#111827"
+    newick_leaf_color = "#111827"
+    newick_branch_length_color = "#111827"
+    newick_internal_node_color = "#111827"
     active_tab = request.form.get("active_tab") or request.args.get("tab") or "main-page"
 
     if request.method == "POST":
-        newick_str = request.form.get("newick")
+        newick_str = (request.form.get("newick", "") or "").strip()
+        newick_file = request.files.get("newick_file")
         active_tab = "newick_tree_viewer"  # keep tab active
-        
-        width = float(request.form.get("width") or 6.4)
-        height = float(request.form.get("height") or 4.8)
+        newick_branch_color = request.form.get("newick_branch_color", newick_branch_color)
+        newick_leaf_color = request.form.get("newick_leaf_color", newick_leaf_color)
+        newick_branch_length_color = request.form.get("newick_branch_length_color", newick_branch_length_color)
+        newick_internal_node_color = request.form.get("newick_internal_node_color", newick_internal_node_color)
+
+        # Prefer textarea input; fallback to uploaded text tree file.
+        if not newick_str and newick_file and newick_file.filename:
+            try:
+                newick_str = newick_file.read().decode("utf-8", errors="ignore").strip()
+            except Exception:
+                newick_str = ""
+
+        newick_input = newick_str
 
         if not newick_str or newick_str.strip() == "":
-            tree_error = "Please provide a Newick string."
+            tree_error = "Please provide a Newick string or upload a tree file (.nwk/.tree/.tre/.txt)."
         else:
             try:
                 handle = StringIO(newick_str)
                 tree = Phylo.read(handle, "newick")
-                fig = plt.figure(figsize=(width, height))
-                ax = fig.add_subplot(1, 1, 1)
-                Phylo.draw(tree, axes=ax, do_show=False)
-
-                filename = f"tree_{uuid.uuid4().hex}.png"
-                image_path = os.path.join(UPLOAD_FOLDER, filename)
-                plt.savefig(image_path, bbox_inches="tight")
-                plt.close()
-
-                tree_image = url_for("uploaded_file", filename=filename)
-                print(os.path.exists(image_path))
+                # Normalize parsed Newick so the frontend viewer gets a clean tree string.
+                normalized_newick = StringIO()
+                Phylo.write(tree, normalized_newick, "newick")
+                tree_newick = normalized_newick.getvalue().strip()
 
             except Exception as e:
                 tree_error = f"Failed to generate tree: {str(e)}"
 
-    return render_template("index.html", tree_image=tree_image, tree_error=tree_error, active_tab=active_tab)
+    return render_template(
+        "index.html",
+        tree_error=tree_error,
+        tree_newick=tree_newick,
+        newick_input=newick_input,
+        newick_branch_color=newick_branch_color,
+        newick_leaf_color=newick_leaf_color,
+        newick_branch_length_color=newick_branch_length_color,
+        newick_internal_node_color=newick_internal_node_color,
+        active_tab=active_tab,
+    )
     
 # TOOL: Other Tools -> Conversion
 @app.route("/convert", methods=["POST"])
 def convert():
-    file = request.files.get("fasta_file")
+    file = request.files.get("sequence_file")
     molecule_type = request.form.get("molecule_type")
+    input_format = request.form.get("input_format", "fasta")
+    output_format = request.form.get("output_format", "nexus")
+
+    # Curated SeqIO formats with robust read/write support for this web workflow.
+    conversion_formats = {
+        "fasta": "FASTA",
+        "fasta-2line": "FASTA (2-line)",
+        "genbank": "GenBank",
+        "embl": "EMBL",
+        "nexus": "NEXUS",
+        "phylip": "PHYLIP",
+        "phylip-relaxed": "PHYLIP Relaxed",
+        "stockholm": "Stockholm",
+        "tab": "Tab-separated",
+    }
+
+    output_extensions = {
+        "fasta": "fasta",
+        "fasta-2line": "fasta",
+        "genbank": "gb",
+        "embl": "embl",
+        "nexus": "nex",
+        "phylip": "phy",
+        "phylip-relaxed": "phy",
+        "stockholm": "sto",
+        "tab": "tab",
+    }
 
     if not file or file.filename == "":
-        return render_template("index.html", error="Please upload a FASTA file.")
+        return render_template("index.html", error="Please upload a sequence file.", active_tab="conversion")
 
-    if not molecule_type:
-        return render_template("index.html", error="Please select a molecule type.")
+    if input_format not in conversion_formats or output_format not in conversion_formats:
+        return render_template("index.html", error="Unsupported conversion format selected.", active_tab="conversion")
+
+    if output_format in {"nexus", "genbank", "embl"} and not molecule_type:
+        return render_template("index.html", error="Please select a molecule type for this output format.", active_tab="conversion")
 
     try:
-        fasta_text = file.read().decode("utf-8")
-        fasta_io = StringIO(fasta_text)
-        alignment = AlignIO.read(fasta_io, "fasta")
+        sequence_text = file.read().decode("utf-8")
+        input_io = StringIO(sequence_text)
+        records = list(SeqIO.parse(input_io, input_format))
 
-        for record in alignment:
-            record.annotations["molecule_type"] = molecule_type
+        if not records:
+            return render_template("index.html", error="No records found. Check file content and selected input format.", active_tab="conversion")
 
-        nexus_io = StringIO()
-        AlignIO.write(alignment, nexus_io, "nexus")
+        if molecule_type:
+            for record in records:
+                record.annotations["molecule_type"] = molecule_type
 
-        result = nexus_io.getvalue()
+        output_io = StringIO()
+        converted_count = SeqIO.write(records, output_io, output_format)
+
+        if converted_count == 0:
+            return render_template("index.html", error="Conversion produced no output records.", active_tab="conversion")
+
+        result = output_io.getvalue()
         
-        fasta_filename = file.filename.rsplit('.', 1)[0]
-        nexus_filename = f"{fasta_filename}.nex"
+        source_filename = file.filename.rsplit('.', 1)[0]
+        out_ext = output_extensions.get(output_format, "txt")
+        converted_filename = f"{source_filename}.{out_ext}"
 
         return Response(
             result,
             mimetype="text/plain",
             headers={
-                "Content-Disposition": f"attachment; filename={nexus_filename}"
+                "Content-Disposition": f"attachment; filename={converted_filename}"
             }
         )
         
     except Exception as e:
         return render_template(
             "index.html",
-            error=f"Conversion failed: {str(e)}"
+            error=f"Conversion failed: {str(e)}",
+            active_tab="conversion"
         )
 
 # https://ena01.uqam.ca/pluginfile.php/9775398/mod_resource/content/2/analyse_phylogenetique_alignement_distances_arbres.html?embed=1
 def parse_iqtree_distance_matrix(file_path):
     with open(file_path, 'r') as f:
         lines = [line.strip() for line in f if line.strip()]
-    
+
+    if not lines:
+        raise ValueError("Distance matrix file is empty.")
+
     n = int(lines[0])
     names = []
     matrix = []
-    
+
+    if len(lines) < n + 1:
+        raise ValueError("Distance matrix file is incomplete.")
+
     for i in range(1, n + 1):
         parts = lines[i].split()
+        if len(parts) < i + 1:
+            raise ValueError(f"Malformed distance matrix row for taxon: {parts[0] if parts else 'unknown'}")
         names.append(parts[0])
         distances = []
         for j in range(1, i + 1):
             distances.append(float(parts[j]))
-        
+
         matrix.append(distances)
-    
+
     return DistanceMatrix(names, matrix)
 
 # TOOL: Sequence Alignment -> MUSCLE 
@@ -182,9 +247,6 @@ def align_mafft():
     if not file or file.filename == "":
         return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
 
-    # Path to the MAFFT binary in your /app folder
-    # mafft_exe = os.path.join(os.getcwd(), "mafft")
-    
     try:
         fasta_content = file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".fasta") as temp_in:
@@ -206,9 +268,6 @@ def align_mafft():
             # Fallback to standard auto mode
             cmd = ["mafft", "--auto", temp_in_path]
 
-        # Building command with the selected strategy
-        # cmd = ["mafft", "--auto", temp_in_path]
-        
         with open(temp_out_path, "w") as out_file:
             process = subprocess.run(cmd, 
                 stdout=out_file, 
@@ -217,9 +276,6 @@ def align_mafft():
 
         if process.returncode != 0:
             raise Exception(f"MAFFT Error: {process.stderr}")
-
-        #with open(temp_out_path, "r") as f:
-        #    aligned_result = f.read()
 
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
         download_name = f"{safe_original_name}_mafft_{uuid.uuid4().hex[:6]}.fasta"
@@ -231,15 +287,7 @@ def align_mafft():
         # Cleanup temporary files
         os.remove(temp_in_path)
         if os.path.exists(temp_out_path):
-            os.remove(temp_out_path)           
-        '''
-        original_name = file.filename.rsplit('.', 1)[0]
-        return Response(
-            aligned_result,
-            mimetype="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={original_name}_mafft.fasta"}
-        )
-        '''
+            os.remove(temp_out_path)
         return render_template("index.html", active_tab=active_tab, mafft_download_file=mafft_download_file)
 
     except Exception as e:
@@ -295,75 +343,15 @@ def align_clustalo():
         shutil.move(temp_out_path, download_path)
         clustalo_download_file = url_for("uploaded_file", filename=download_name)
 
-        #with open(temp_out_path, "r") as f:
-        #    aligned_result = f.read()
-
         # Cleanup
         os.remove(temp_in_path)
         if os.path.exists(temp_out_path):
             os.remove(temp_out_path)
-        '''
-        # Match the downloaded file extension to the requested format
-        ext_map = {"fasta": "fasta", "clustal": "aln", "phylip": "phy"}
-        file_extension = ext_map.get(outfmt, "txt")
-        original_name = file.filename.rsplit('.', 1)[0]
-        
-        return Response(
-            aligned_result,
-            mimetype="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={original_name}_clustalo.{file_extension}"}
-        )
-        '''
         return render_template("index.html", active_tab=active_tab, clustalo_download_file=clustalo_download_file)
         
     except Exception as e:
         return render_template("index.html", error=str(e), active_tab=active_tab)
-'''
-# TOOL: Tree Inference -> Parsimony (MPBoot)
-@app.route("/run_mpboot", methods=["POST"])
-def run_mpboot():
-    file = request.files.get("fasta_file")
-    active_tab = "parsimony"
 
-    if not file or file.filename == "":
-        return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
-
-    mpboot_exe = os.path.join(os.getcwd(), "mpboot")
-
-    try:
-        fasta_text = file.read()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".fasta") as temp_in:
-            temp_in.write(fasta_text)
-            temp_in_path = temp_in.name
-        
-        output_prefix = temp_in_path + "_mpb"
-
-        # -s: input, -bb: 1000 bootstrap replicates, -pre: output prefix
-        cmd = [mpboot_exe, "-s", temp_in_path, "-bb", "1000", "-pre", output_prefix]
-        process = subprocess.run(cmd, capture_output=True, text=True)
-
-        if process.returncode != 0:
-            raise Exception(f"MPBoot Error: {process.stderr}")
-
-        treefile_path = output_prefix + ".treefile"
-        with open(treefile_path, "r") as f:
-            tree_data = f.read()
-
-        # Cleanup intermediate files
-        for ext in [".log", ".treefile", ".iqtree", ".ckp.gz"]:
-            if os.path.exists(output_prefix + ext):
-                os.remove(output_prefix + ext)
-        os.remove(temp_in_path)
-
-        return Response(
-            tree_data,
-            mimetype="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={file.filename}_mpboot.tree"}
-        )
-
-    except Exception as e:
-        return render_template("index.html", error=str(e), active_tab=active_tab)
-'''
 # TOOL: Tree Inference -> Parsimony (MPBoot)
 @app.route("/run_mpboot", methods=["POST"])
 def run_mpboot():
@@ -406,25 +394,9 @@ def run_mpboot():
         if not os.path.exists(treefile_path):
             raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
 
-        # 3. READ AND DRAW THE TREE
+        # 3. Read Newick output for interactive rendering in the frontend viewer.
         with open(treefile_path, "r") as f:
             newick_str = f.read().strip()
-
-        tree = Phylo.read(StringIO(newick_str), "newick")
-        num_leaves = tree.count_terminals()
-        set_height = max(5, num_leaves * 1.0)
-        
-        fig = plt.figure(figsize=(10, set_height))
-        ax = fig.add_subplot(1, 1, 1)
-        Phylo.draw(tree, axes=ax, do_show=False)
-        
-        # Save the tree image to the uploads folder
-        image_name = f"tree_mpboot_{uuid.uuid4().hex[:6]}.png"
-        image_path = os.path.join(UPLOAD_FOLDER, image_name)
-        plt.savefig(image_path, bbox_inches="tight")
-        plt.close()
-
-        tree_image_mpboot = url_for("uploaded_file", filename=image_name)
 
         # 4. PREPARE THE TREEFILE FOR DOWNLOAD
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
@@ -443,7 +415,7 @@ def run_mpboot():
         return render_template(
             "index.html", 
             active_tab=active_tab, 
-            tree_image_mpboot=tree_image_mpboot,
+            mpboot_newick=newick_str,
             mpboot_tree_file=mpboot_tree_file
         )
 
@@ -539,67 +511,28 @@ def run_iqtree():
 
     except Exception as e:
         return render_template("index.html", error=str(e), active_tab=active_tab)
-'''
-# TOOL: Tree inference -> Maximum Liklihoof (IQ-TREE)
-@app.route("/run_iqtree", methods=["POST"])
-def run_iqtree():
-    file = request.files.get("alignment_file")
-    active_tab = "ml" # Maximum Likelihood tab
-
-    if not file or file.filename == "":
-        return render_template("index.html", error="Please upload an alignment file.", active_tab=active_tab)
-
-    iqtree_exe = os.path.join(os.getcwd(), "iqtree")
-
-    try:
-        content = file.read()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".fasta") as temp_in:
-            temp_in.write(content)
-            temp_in_path = temp_in.name
-        
-        output_prefix = temp_in_path + "_iq"
-
-        # -s: input, -m MFP: ModelFinder Plus (finds best substitution model)
-        # -bb: 1000 ultrafast bootstraps, -nt AUTO: use optimal threads
-        cmd = [iqtree_exe, "-s", temp_in_path, "-m", "MFP", "-bb", "1000", "-nt", "AUTO", "-pre", output_prefix]
-        
-        process = subprocess.run(cmd, capture_output=True, text=True)
-
-        if process.returncode != 0:
-            raise Exception(f"IQ-TREE Error: {process.stderr}")
-
-        # The ML tree with bootstrap supports is in the .treefile
-        treefile_path = output_prefix + ".treefile"
-        with open(treefile_path, "r") as f:
-            tree_data = f.read()
-
-        # Cleanup (IQ-TREE generates MANY files)
-        extensions = [".log", ".treefile", ".iqtree", ".ckp.gz", ".bionj", ".mldist", ".model.gz", ".splits.nex"]
-        for ext in extensions:
-            if os.path.exists(output_prefix + ext):
-                os.remove(output_prefix + ext)
-        os.remove(temp_in_path)
-
-        # Return as JSON so your new visualizer can print it on screen
-        return jsonify({"newick": tree_data, "method": "Maximum Likelihood"})
-
-    except Exception as e:
-        return jsonify({"error": str(e)})
-'''    
 # TOOL: Tree Inference -> Distance Methods (Neighbour-Joining and UPGMA)
 @app.route("/distance-methods", methods=["POST"])
-def NJ():
+def distance_methods():
     active_tab = "distance"
     file = request.files.get("fasta_file_distance")
-    method = request.form.get("method")
-    
+    method = (request.form.get("method") or "").strip().lower()
+
     if not file or file.filename == "":
         return render_template(
             "index.html",
             error="Please upload a file.",
             active_tab="distance"
         )
-    
+
+    if method not in {"nj", "upgma"}:
+        return render_template(
+            "index.html",
+            distance_error="Please choose a valid distance method (NJ or UPGMA).",
+            active_tab=active_tab,
+        )
+
+    unique_folder = None
     try:
         unique_folder = os.path.join(UPLOAD_FOLDER, str(uuid.uuid4()))
         os.makedirs(unique_folder, exist_ok=True)
@@ -608,29 +541,16 @@ def NJ():
         filepath = os.path.join(unique_folder, safe_filename)
 
         file.save(filepath)
-        print("Saved file to:", filepath)
+        output_prefix = os.path.join(unique_folder, "distance_model")
 
-        # run IQ-TREE to find best model
-        cmd = [
-            "iqtree3",
-            "-s", filepath,
-            "-m", "MFP",
-            "-nt", "1",
-            "-redo"
-        ]     
-        # print("Running command:", " ".join(cmd))
+        # One IQ-TREE run is enough: MFP selects the model and writes the ML distance matrix.
+        cmd = ["iqtree3", "-s", filepath, "-m", "MFP", "-nt", "AUTO", "-pre", output_prefix, "-redo"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True
-        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "IQ-TREE failed while selecting a model.")
 
-        # print("STDOUT:", result.stdout)
-        # print("STDERR:", result.stderr)
-        
-        # read .iqtree file to get the best model
-        iqtree_file = filepath + ".iqtree"
+        iqtree_file = output_prefix + ".iqtree"
         best_model = None
 
         if os.path.exists(iqtree_file):
@@ -639,36 +559,19 @@ def NJ():
                     if "Best-fit model according to BIC:" in line:
                         best_model = line.split(":")[1].strip()
                         break
-        else :
+                    elif "Best-fit model:" in line:
+                        best_model = line.split("Best-fit model:")[1].split()[0]
+                        break
+
+        if not best_model:
             return render_template(
                     "index.html",
                     error="Could not find best-fit model",
                     active_tab="distance"
                 )
-        
-        prefix = "best_model_tree"
-        
-        model_cmd = [
-            "iqtree3",
-            "-s", filepath,
-            "-m", best_model,
-            "-nt", "1",
-            "-redo", 
-            "-pre", os.path.join(os.path.dirname(filepath), prefix)
-        ]
-        
-        result2 = subprocess.run(
-            model_cmd,
-            capture_output=True,
-            text=True
-        )
-        
-        # print("STDOUT:", result2.stdout)
-        # print("STDERR:", result2.stderr)
-        
-        mldist_file = prefix + ".mldist"
-        filepath_mldist_file = os.path.join(unique_folder, mldist_file)
-        
+
+        filepath_mldist_file = output_prefix + ".mldist"
+
         if not os.path.exists(filepath_mldist_file):
             return render_template(
                 "index.html",
@@ -681,70 +584,142 @@ def NJ():
         constructor = DistanceTreeConstructor()
         if method == "nj":
             tree_distance = constructor.nj(dm)
-            image_name = "tree_nj.png"
-        elif method == "upgma":
-            tree_distance = constructor.upgma(dm)
-            image_name = "tree_upgma.png"
+            method_label = "Neighbor-Joining"
         else:
-            raise ValueError("Invalid method selected")
+            tree_distance = constructor.upgma(dm)
+            method_label = "UPGMA"
 
-        nj_tree_file = os.path.join(unique_folder, "nj_tree.nwk")
-        Phylo.write(tree_distance, nj_tree_file, "newick")
-        
-        with open(nj_tree_file, "r") as f:
+        output_tree_file = os.path.join(unique_folder, f"{method}_tree.nwk")
+        Phylo.write(tree_distance, output_tree_file, "newick")
+
+        with open(output_tree_file, "r", encoding="utf-8") as f:
             newick_str = f.read().strip()
-            
-        # TODO: Add lengths, rename root and nodes
-        tree = Phylo.read(StringIO(newick_str), "newick")
-        num_leaves = tree.count_terminals()
-        set_height = max(5, num_leaves * 1.0)
-        fig = plt.figure(figsize=(10, set_height))
-        ax = fig.add_subplot(1, 1, 1)
-        Phylo.draw(tree, axes=ax, do_show=False)
-        
-        # TODO: eventually to be put into unique_folder
-        image_path = os.path.join("static", image_name)
-        plt.savefig(image_path, bbox_inches="tight")
-        plt.close()
-
-        tree_image_distance = url_for("static", filename=image_name)
 
     except Exception as e:
         return render_template("index.html", distance_error=str(e), active_tab="distance")
+    finally:
+        if unique_folder and os.path.isdir(unique_folder):
+            shutil.rmtree(unique_folder, ignore_errors=True)
         
-    return render_template("index.html", tree_image_distance=tree_image_distance, active_tab=active_tab)
+    return render_template(
+        "index.html",
+        distance_newick=newick_str,
+        distance_method_label=method_label,
+        distance_substitution_model=best_model,
+        active_tab=active_tab,
+    )
         
 # TOOL: Tree Inference -> Bayesian Inference (MrBayes)
 def run_mrbayes(nexus_path, working_dir):
     try:
-        print("MrBayes start")
+        # print("MrBayes start")
         result = subprocess.run(
             ["mb", os.path.basename(nexus_path)],
             cwd=working_dir,
             capture_output=True,
             text=True
         )
-        print("MrBayes end")
+        # print("MrBayes end")
 
         log_path = os.path.join(working_dir, "mrbayes_log.txt")
         with open(log_path, "w") as f:
             f.write(result.stdout + "\n\n" + result.stderr)
 
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "MrBayes exited with a non-zero status.")
+
+        return log_path
+
     except Exception as e:
         print("MrBayes error:", str(e))
+        raise
+
+
+def find_mrbayes_consensus_file(working_dir):
+    patterns = [
+        "*.con.tre",
+        "*.con",
+        "*.t",
+        "*.trprobs"
+    ]
+    for pattern in patterns:
+        matches = sorted(glob.glob(os.path.join(working_dir, pattern)))
+        if matches:
+            return matches[0]
+    return None
+
+
+def read_consensus_tree(consensus_path):
+    for fmt in ("nexus", "newick"):
+        try:
+            trees = list(Phylo.parse(consensus_path, fmt))
+            if trees:
+                return trees[0]
+        except Exception:
+            continue
+    raise ValueError("Could not parse MrBayes consensus tree file.")
+
+
+def extract_clean_newick_from_mrbayes_text(raw_text):
+    # Parse optional NEXUS translate block so numeric taxa IDs become real labels.
+    translation = {}
+    translate_match = re.search(r"translate\s+(.*?);", raw_text, flags=re.IGNORECASE | re.DOTALL)
+    if translate_match:
+        translate_block = translate_match.group(1)
+        for key, value in re.findall(r"(\d+)\s+([^,;\n\r]+)", translate_block):
+            translation[key] = value.strip().strip("'").strip('"')
+
+    # Extract the tree assignment (everything after '=' up to ';').
+    tree_match = re.search(r"tree\s+[^=]*=\s*(?:\[&U\]\s*)?(\(.*?\));", raw_text, flags=re.IGNORECASE | re.DOTALL)
+    if not tree_match:
+        return None
+
+    newick = tree_match.group(1) + ";"
+
+    # Remove all MrBayes annotation blocks, e.g. [&prob=...].
+    newick = re.sub(r"\[&[^\]]*\]", "", newick)
+
+    # Replace translated numeric taxon IDs with labels.
+    if translation:
+        pattern = re.compile(r"(?<=[(,])\s*(\d+)\s*(?=[:),])")
+
+        def _replace_taxon(match):
+            taxon_id = match.group(1)
+            return translation.get(taxon_id, taxon_id)
+
+        newick = pattern.sub(_replace_taxon, newick)
+
+    # Normalize repeated whitespace.
+    newick = re.sub(r"\s+", "", newick)
+    return newick
+
+
+def _guess_molecule_type_from_alignment(alignment):
+    dna_chars = set("ACGTN-?")
+    rna_chars = set("ACGUN-?")
+    observed = set()
+
+    for record in alignment:
+        observed.update(str(record.seq).upper())
+
+    if observed and observed.issubset(rna_chars):
+        return "RNA"
+    if observed and observed.issubset(dna_chars):
+        return "DNA"
+    return "protein"
         
         
 @app.route("/bayesian_inference", methods=["POST"])
 def bayesian_inference():
     file = request.files.get("sequence_file")
     
-    print("File object:", file)
-    print("Filename:", file.filename if file else "No file")
+    # print("File object:", file)
+    # print("Filename:", file.filename if file else "No file")
 
-    print("ngen:", request.form.get("ngen"))
-    print("samplefreq:", request.form.get("samplefreq"))
-    print("printfreq:", request.form.get("printfreq"))
-    print("burnin:", request.form.get("burnin"))
+    # print("ngen:", request.form.get("ngen"))
+    # print("samplefreq:", request.form.get("samplefreq"))
+    # print("printfreq:", request.form.get("printfreq"))
+    # print("burnin:", request.form.get("burnin"))
 
     if not file or file.filename == "":
         return render_template(
@@ -765,10 +740,28 @@ def bayesian_inference():
 
         if filename.endswith(".nex"):
             nexus_text = file_text
+        elif filename.endswith((".fasta", ".fa", ".txt")):
+            try:
+                fasta_io = StringIO(file_text)
+                alignment = AlignIO.read(fasta_io, "fasta")
+                molecule_type = _guess_molecule_type_from_alignment(alignment)
+
+                for record in alignment:
+                    record.annotations["molecule_type"] = molecule_type
+
+                nexus_io = StringIO()
+                AlignIO.write(alignment, nexus_io, "nexus")
+                nexus_text = nexus_io.getvalue()
+            except Exception as convert_err:
+                return render_template(
+                    "index.html",
+                    error=f"Could not convert FASTA to NEXUS: {str(convert_err)}",
+                    active_tab="bayesian-inference"
+                )
         else:
             return render_template(
                 "index.html",
-                error="Unsupported file type.",
+                error="Unsupported file type. Please upload a .nex, .fasta, .fa, or .txt FASTA file.",
                 active_tab="bayesian-inference"
             )
 
@@ -792,21 +785,104 @@ def bayesian_inference():
         with open(nexus_filename, "w") as f:
             f.write(nexus_text)
 
-        # Run MrBayes in background
-        threading.Thread(target=run_mrbayes, args=(nexus_filename, unique_folder)).start()
-        
-        # run_mrbayes(nexus_filename, unique_folder)
+        # Run MrBayes and wait until all outputs are generated.
+        run_mrbayes(nexus_filename, unique_folder)
+
+        safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
+        run_suffix = uuid.uuid4().hex[:6]
+
+        # Package all MrBayes outputs from this run for automatic download.
+        archive_basename = f"{safe_original_name}_mrbayes_{run_suffix}"
+        archive_path_no_ext = os.path.join(UPLOAD_FOLDER, archive_basename)
+        archive_path = shutil.make_archive(archive_path_no_ext, "zip", root_dir=unique_folder)
+        bayes_results_zip = url_for("uploaded_file", filename=os.path.basename(archive_path))
+
+        bayes_download_file = None
+        bayes_newick = None
+        consensus_path = find_mrbayes_consensus_file(unique_folder)
+        if consensus_path:
+            tree = read_consensus_tree(consensus_path)
+            with open(consensus_path, "r", encoding="utf-8", errors="ignore") as f:
+                consensus_text = f.read()
+            bayes_newick = extract_clean_newick_from_mrbayes_text(consensus_text)
+            if not bayes_newick:
+                newick_io = StringIO()
+                Phylo.write(tree, newick_io, "newick")
+                bayes_newick = newick_io.getvalue().strip()
+
+            treefile_name = f"{safe_original_name}_mrbayes_{run_suffix}.tree"
+            treefile_path = os.path.join(UPLOAD_FOLDER, treefile_name)
+            with open(treefile_path, "w", encoding="utf-8") as treefile_out:
+                treefile_out.write(bayes_newick if bayes_newick.endswith(";") else bayes_newick + ";")
+            bayes_download_file = url_for("uploaded_file", filename=treefile_name)
+
+        shutil.rmtree(unique_folder, ignore_errors=True)
 
         return render_template(
             "index.html",
-            message="MrBayes is running... refresh in a few seconds.",
-            active_tab="bayesian-inference"
+            active_tab="bayesian-inference",
+            message="MrBayes completed.",
+            bayes_newick=bayes_newick,
+            bayes_download_file=bayes_download_file,
+            auto_download_url=bayes_results_zip
         )
 
     except Exception as e:
         return render_template(
             "index.html",
             error=f"Error: {str(e)}",
+            active_tab="bayesian-inference"
+        )
+
+
+@app.route("/view_mrbayes_tre", methods=["POST"])
+def view_mrbayes_tre():
+    file = request.files.get("mrbayes_tre_file")
+
+    if not file or file.filename == "":
+        return render_template(
+            "index.html",
+            error="Please upload a MrBayes .tre/.con.tre file.",
+            active_tab="bayesian-inference"
+        )
+
+    try:
+        suffix = os.path.splitext(file.filename)[1] or ".tre"
+        raw_text = file.read().decode("utf-8", errors="ignore")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(raw_text.encode("utf-8"))
+            temp_path = temp_file.name
+
+        tree = read_consensus_tree(temp_path)
+
+        bayes_newick = extract_clean_newick_from_mrbayes_text(raw_text)
+        if not bayes_newick:
+            newick_io = StringIO()
+            Phylo.write(tree, newick_io, "newick")
+            bayes_newick = newick_io.getvalue().strip()
+
+        uploaded_suffix = uuid.uuid4().hex[:6]
+        treefile_name = f"mrbayes_uploaded_{uploaded_suffix}.tree"
+        treefile_path = os.path.join(UPLOAD_FOLDER, treefile_name)
+        with open(treefile_path, "w", encoding="utf-8") as treefile_out:
+            treefile_out.write(bayes_newick if bayes_newick.endswith(";") else bayes_newick + ";")
+
+        os.remove(temp_path)
+
+        return render_template(
+            "index.html",
+            active_tab="bayesian-inference",
+            message="Consensus tree loaded from uploaded file.",
+            bayes_newick=bayes_newick,
+            bayes_download_file=url_for("uploaded_file", filename=treefile_name)
+        )
+
+    except Exception as e:
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+        return render_template(
+            "index.html",
+            error=f"Could not parse uploaded tree: {str(e)}",
             active_tab="bayesian-inference"
         )
 
