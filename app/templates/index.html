@@ -27,7 +27,7 @@
                 <button onclick="showTool('bayesian-inference', this)" class="{{ 'active' if active_tab == 'bayesian-inference' else '' }}">Bayesian Inference</button>
                 <button onclick="showTool('parsimony', this)" class="{{ 'active' if active_tab == 'parsimony' else '' }}">Parsimony</button>
                 <button onclick="showTool('maximum-likelihood', this)" class="{{ 'active' if active_tab == 'maximum-likelihood' else '' }}">Maximum Likelihood</button>
-                <button onclick="showTool('distance', this)" class="{{ 'active' if active_tab == 'sequence_alignment' else '' }}">Distance Methods</button>
+                <button onclick="showTool('distance', this)" class="{{ 'active' if active_tab == 'distance' else '' }}">Distance Methods</button>
             </div>
         </div>
 
@@ -36,7 +36,7 @@
             <div class="dropdown-content">
                 <button onclick="showTool('muscle', this)" class="{{ 'active' if active_tab == 'muscle' else '' }}">MUSCLE</button>
                 <button onclick="showTool('mafft', this)" class="{{ 'active' if active_tab == 'mafft' else '' }}">MAFFT</button>
-                <button onclick="showTool('clustalo', this)" class="{{ 'active' if active_tab == 'clustalo' else '' }}">ClustalOmega</button>
+                <button onclick="showTool('clustalo', this)" class="{{ 'active' if active_tab == 'clustalo' else '' }}">Clustal Omega</button>
             </div>
         </div>
 
@@ -78,25 +78,105 @@
             <div id="newick_tree_viewer" class="tool">
                 <h2>Newick Tree Viewer</h2>
 
-                <form method="POST" action="/">
-                    <p id="instructions"> Enter a Newick string to generate a visualization.</p>
+                <form id="newick-form" class="newick-form" method="POST" action="/" enctype="multipart/form-data">
+                    <p class="instructions"> Paste a Newick string to generate a visualization</p>
                     <input type="hidden" name="active_tab" value="newick_tree_viewer">
-                    <!--{{ request.form.get("newick", "") }}-->
-                    <textarea name="newick" cols="50" rows="5" style="resize:vertical;" placeholder="ex. (3:1.4169,(2:0.7175,4:0.4890):0.5861,(1:2.2016,5:0.7767):0.8123);"></textarea>
-                    <p id="instructions"> Width (inches)</p>
-                    <input type="number" step="0.2" name="width" placeholder="6.4" style="width: 10%;">
-                    <br><br>
-                    <p id="instructions"> Height (inches)</p>
-                    <input type="number" step="0.2" name="height" placeholder="4.8" style="width: 10%;">
+                    <textarea name="newick" cols="50" rows="5" style="resize:vertical;" placeholder="ex. (3:1.4169,(2:0.7175,4:0.4890):0.5861,(1:2.2016,5:0.7767):0.8123);">{{ newick_input or '' }}</textarea>
+                    <p class="instructions"> Or upload a Newick file (.nwk, .tree, .tre, .txt)</p>
+                    <input type="file" name="newick_file" accept=".nwk,.tree,.tre,.txt,.newick">
                     <br><br>
                     <button type="submit">Submit</button>
+                    <button type="button" onclick="clearNewickForm()" style="background-color: #9f1239; margin-left: 8px;">Clear</button>
                 </form>
 
                 {% if tree_error %}
-                    <p style="color:red;">{{ tree_error }}</p>
+                    <p class="text-error">{{ tree_error }}</p>
                 {% endif %}
-                {% if tree_image %}
-                    <img src="{{ tree_image }}">
+
+                {% if tree_newick %}
+                    <div class="newick-workspace">
+                        <div class="tree-stage">
+                            <div id="newick-title-label" class="tree-stage-title"></div>
+                            <div class="tree-stage-plot">
+                                <div id="newick-y-label" class="tree-stage-ylabel"></div>
+                                <div id="newick-viewer" class="newick-viewer"></div>
+                            </div>
+                            <div id="newick-x-label" class="tree-stage-xlabel"></div>
+                        </div>
+
+                        <div class="newick-control-menu newick-control-menu--side">
+                            <div class="newick-control-menu__header">
+                                <strong>Options</strong>
+                            </div>
+
+                            <div class="newick-control-grid">
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Tree Layout</strong>
+                                    <div class="newick-button-row">
+                                        <button type="button" data-layout="hierarchical-horizontal" onclick="setNewickTreeLayout('hierarchical-horizontal', this);" class="newick-mini-button is-active">Hierarchical Horizontal</button>
+                                        <button type="button" data-layout="hierarchical-vertical" onclick="setNewickTreeLayout('hierarchical-vertical', this);" class="newick-mini-button">Hierarchical Vertical</button>
+                                        <button type="button" data-layout="circular" onclick="setNewickTreeLayout('circular', this);" class="newick-mini-button">Circular</button>
+                                        <button type="button" data-layout="radial" onclick="setNewickTreeLayout('radial', this);" class="newick-mini-button">Radial</button>
+                                        <button type="button" data-layout="diagonal-horizontal" onclick="setNewickTreeLayout('diagonal-horizontal', this);" class="newick-mini-button">Diagonal Horizontal</button>
+                                        <button type="button" data-layout="diagonal-vertical" onclick="setNewickTreeLayout('diagonal-vertical', this);" class="newick-mini-button">Diagonal Vertical</button>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Display Options</strong>
+                                    <div class="newick-display-options">
+                                        <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="newickViewer.alignLabels = this.checked; newickViewer.draw();" checked> Align Leaves (Cladogram)</label>
+                                        <label><input type="checkbox" onchange="newickViewer.showBranchLengthLabels = this.checked; updateNewickStyles();"> Show Branch Lengths</label>
+                                        <label><input type="checkbox" onchange="newickViewer.showInternalNodeLabels = this.checked; updateNewickStyles();"> Show Internal Nodes</label>
+                                        <label title="Enable this only when you want to zoom/pan the tree"><input id="newick-enable-interaction" type="checkbox" onchange="setNewickInteraction(this.checked)"> Enable Mouse Interaction</label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Colours</strong>
+                                    <div class="newick-color-panel">
+                                        <label class="newick-color-field">
+                                            Branch Colour
+                                            <input id="newick-branch-color" type="color" name="newick_branch_color" value="{{ newick_branch_color or '#111827' }}" oninput="updateNewickStyles()">
+                                        </label>
+                                        <label class="newick-color-field">
+                                            Leaf Colour
+                                            <input id="newick-leaf-color" type="color" name="newick_leaf_color" value="{{ newick_leaf_color or '#111827' }}" oninput="updateNewickStyles()">
+                                        </label>
+                                        <label class="newick-color-field">
+                                            Branch Length Colour
+                                            <input id="newick-branch-length-color" type="color" name="newick_branch_length_color" value="{{ newick_branch_length_color or '#111827' }}" oninput="updateNewickStyles()">
+                                        </label>
+                                        <label class="newick-color-field">
+                                            Internal Node Colour
+                                            <input id="newick-internal-node-color" type="color" name="newick_internal_node_color" value="{{ newick_internal_node_color or '#111827' }}" oninput="updateNewickStyles()">
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card is-collapsed">
+                                    <button type="button" class="newick-card-toggle" onclick="toggleControlCard(this)" aria-expanded="false">
+                                        <span style="color: #5a2285; font-size: 14px; font-weight: 700;">Figure Labels</span>
+                                        <span class="newick-card-toggle-icon" aria-hidden="true">+</span>
+                                    </button>
+                                    <div class="axis-input-grid card-collapsible-content">
+                                        <label class="axis-input-field">Title<input id="newick-title-input" type="text" placeholder="Tree title" oninput="updateNewickAnnotations()"></label>
+                                        <label class="axis-input-field">X-axis<input id="newick-x-input" type="text" placeholder="X-axis label" oninput="updateNewickAnnotations()"></label>
+                                        <label class="axis-input-field">Y-axis<input id="newick-y-input" type="text" placeholder="Y-axis label" oninput="updateNewickAnnotations()"></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="newick-control-actions">
+                                <button type="button" onclick="resetNewickView()" class="newick-action-button newick-action-button--reset">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Reset View
+                                </button>
+                                <button type="button" onclick="downloadNewickTreeImage()" class="newick-action-button newick-action-button--download">
+                                    <i class="fa-solid fa-camera"></i> Save Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
 
                 <br><br>
@@ -117,20 +197,24 @@
                 <h2>Sequence Alignment using MUSCLE v5</h2>
                 <form id="muscle-form" method="POST" action="/align_muscle" enctype="multipart/form-data">
                     <input type="hidden" name="active_tab" value="muscle">
-                    <p id="instructions"> Upload unaligned sequences (FASTA format):</p>
+                    <p class="instructions"> Upload unaligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
                     <br><br>
-                    <p id="instructions"> Computation Mode:</p>
-                    <select name="computation_mode" style="padding: 5px; font-size: 14px;">
-                        <option value="align">Standard (-align): High accuracy</option>
-                        <option value="super5">Super5 (-super5): Large datasets</option>
-                    </select>
-                    <br><br>
-                    <button type="submit">Run Alignment</button>
+                    <div class="mrbayes-params-grid">
+                        <div class="mrbayes-param-group">
+                            <label class="instructions muscle-control-label" for="muscle-computation-mode">Computation Mode</label>
+                            <select name="computation_mode" id="muscle-computation-mode" class="mrbayes-param-input">
+                                <option value="align">Standard (-align): High accuracy</option>
+                                <option value="super5">Super5 (-super5): Large datasets</option>
+                            </select>
+                        </div>
+                    </div>
+                    <br>
+                    <button type="submit">Run MUSCLE</button>
                 </form>
 
                 {% if error and active_tab == 'muscle' %}
-                    <p style="color:red;">{{ error }}</p>
+                    <p class="text-error">{{ error }}</p>
                 {% endif %}
 
                 {% if muscle_download_file %}
@@ -158,21 +242,22 @@
                 <h2>Sequence Alignment using MAFFT</h2>
                 <form id="mafft-form" method="POST" action="/align_mafft" enctype="multipart/form-data">
                     <input type="hidden" name="active_tab" value="mafft">
-                    <p id="instructions"> Enter your FASTA format sequences.</p>
+                    <p class="instructions"> Upload unaligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
-                    <br><br>
-                    <div class="options-group">
-                        <p id="instructions"><label for="mafft_strategy">Alignment Strategy:</label><p>
-                        <select name="mafft_strategy" id="mafft_strategy" style="padding: 5px; font-size: 14px;">
-                            <option value="--auto">Auto (Default speed/accuracy)</option>
-                            <option value="--linsi">L-INS-i (Most accurate, max ~200 sequences)</option>
-                            <option value="--einsi">E-INS-i (For sequences with large gaps)</option>
-                            <option value="--ginsi">G-INS-i (For sequences of similar length)</option>
-                        </select>
+                    <br>
+                    <p class="instructions">Alignment Strategy</p>
+                    <div class="mrbayes-params-grid">
+                        <div class="mrbayes-param-group">
+                            <select name="mafft_strategy" id="mafft_strategy" class="mrbayes-param-input">
+                                <option value="--auto">Auto (Default speed/accuracy)</option>
+                                <option value="--linsi">L-INS-i (Most accurate, max ~200 sequences)</option>
+                                <option value="--einsi">E-INS-i (For sequences with large gaps)</option>
+                                <option value="--ginsi">G-INS-i (For sequences of similar length)</option>
+                            </select>
+                        </div>
                     </div>
-                    <!-- <br><br> -->
-                    <!-- <p style="font-size: 14px; color: #666;">Mode: --auto (Automatically selects strategy based on data size)</p> -->
-                    <button type="submit">Run MAFFT Alignment</button>
+                    <br>
+                    <button type="submit">Run MAFFT</button>
                 </form>
                 {% if mafft_download_file %}
                     <br><br>
@@ -189,44 +274,38 @@
                 <h2>Sequence Alignment (Clustal Omega)</h2>
                 <form id="clustalo-form" method="POST" action="/align_clustalo" enctype="multipart/form-data">
                     <input type="hidden" name="active_tab" value="clustalo">
-                    <p id="instructions">Upload Sequences (FASTA format):</p>
+                    <p class="instructions">Upload unaligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file" required>
-                    <br><br>
+                    <br>
+                    <p class="instructions">Custom Parameters</p>
+                    <div class="mrbayes-params-grid">
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="clustalo-outfmt">Output Format</label>
+                            <select name="outfmt" id="clustalo-outfmt" class="mrbayes-param-input">
+                                <option value="fasta">FASTA (Default)</option>
+                                <option value="clustal">Clustal (.aln)</option>
+                                <option value="phylip">PHYLIP (.phy)</option>
+                            </select>
+                        </div>
 
-                    <p id="instructions"> Parameters:</p>
-                    
-                    <div class="options-group">
-                        <label>Output Format:</label>
-                        <br><br>
-                        <select name="outfmt" style="padding: 5px; width: 15%; font-size: 14px;">
-                            <option value="fasta">FASTA (Default)</option>
-                            <option value="clustal">Clustal (.aln)</option>
-                            <option value="phylip">PHYLIP (.phy)</option>
-                        </select>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="clustalo-iterations">HMM Iterations (Refinement)</label>
+                            <select name="iterations" id="clustalo-iterations" class="mrbayes-param-input">
+                                <option value="0">0 - Fast (Default)</option>
+                                <option value="1">1 - More accurate</option>
+                                <option value="2">2 - Highly accurate (Slower)</option>
+                            </select>
+                        </div>
+
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="clustalo-outorder">Output Order</label>
+                            <select name="outorder" id="clustalo-outorder" class="mrbayes-param-input">
+                                <option value="input-order">Input Order (Default)</option>
+                                <option value="tree-order">Aligned Tree Order</option>
+                            </select>
+                        </div>
                     </div>
-                    <br><br>
-
-                    <div class="options-group">
-                        <label>HMM Iterations (Refinement):</label>
-                        <br><br>
-                        <select name="iterations" style="padding: 5px; width: 15%; font-size: 14px;">
-                            <option value="0">0 - Fast (Default)</option>
-                            <option value="1">1 - More accurate</option>
-                            <option value="2">2 - Highly accurate (Slower)</option>
-                        </select>
-                    </div>
-                    <br><br>
-
-                    <div class="options-group">
-                        <label>Output Order:</label>
-                        <br><br>
-                        <select name="outorder" style="padding: 5px; width: 15%; font-size: 14px;">
-                            <option value="input-order">Input Order (Default)</option>
-                            <option value="tree-order">Aligned Tree Order</option>
-                        </select>
-                    </div>
-                    <br><br>
-
+                    <br>
                     <p style="font-size: 14px; color: #666;">
                         Clustal Omega uses seeded guide trees and HMM profile-profile techniques to provide high-scale alignments.
                     </p>
@@ -234,7 +313,7 @@
                 </form>
 
                 {% if error and active_tab == 'clustalo' %}
-                    <p style="color:red;">{{ error }}</p>
+                    <p class="text-error">{{ error }}</p>
                 {% endif %}
 
                 {% if clustalo_download_file %}
@@ -247,47 +326,135 @@
                 {% endif %}
             </div>
             
-            <!--
-            <div id="clustalo" class="tool">
-                <h2>Sequence Alignment (Clustal Omega)</h2>
-                <form method="POST" action="/align_clustalo" enctype="multipart/form-data">
-                    <input type="hidden" name="active_tab" value="clustalo">
-                    <h4>Upload Sequences (FASTA format):</h4>
-                    <input type="file" name="fasta_file" required>
-                    <br><br>
-                    <p style="font-size: 14px; color: #666;">
-                        Clustal Omega uses seeded guide trees and HMM profile-profile techniques to provide high-scale alignments.
-                    </p>
-                    <button type="submit">Run Clustal Omega</button>
-                </form>
-            </div>
-            -->
-
             <!-- Bayesian Inference -->
             <div id="bayesian-inference" class="tool">
                 <h2>Bayesian Inference</h2>
                 <form id="bayesian-inference-form" method="POST" action="/bayesian_inference" enctype="multipart/form-data">
-                    <p id="instructions">Upload aligned sequences (FASTA or NEXUS):</p>
+                    <p class="instructions">Upload aligned sequences (FASTA or NEXUS)</p>
                     <input type="file" name="sequence_file" accept=".fasta,.fa,.txt,.nex" required>
-                    <p id="instructions">Parameters (leave blank for defaults):</p>
-                    <label>Number of Generations: <br><input type="number" name="ngen" placeholder="Default: 1000000" style="width: 10%;"></label><br><br>
-                    <label>Sample Frequency: <br><input type="number" name="samplefreq" placeholder="Default: 100" style="width: 10%;"></label><br><br>
-                    <label>Print Frequency: <br><input type="number" name="printfreq" placeholder="Default: 100000" style="width: 10%;"></label><br><br>
-                    <label>Number of burn-ins: <br><input type="number" name="burnin" placeholder="Default: 2500" style="width: 10%;"></label><br><br>
-                    <button type="submit">Submit</button>
+                    <br>
+                    
+                    <div class="options-group preset-group">
+                        <label class="preset-label"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
+                        <select id="mrbayes-preset" onchange="applyMrBayesPreset()" class="control-compact preset-select">
+                            <option value="intensif">Intensive (1 000 000 gen)</option>
+                            <option value="rapide">Fast (100 000 gen)</option>
+                            <option value="custom">Custom (Manual Entry)</option>
+                        </select>
+                    </div>
+                    
+                    <p class="instructions">Custom Parameters</p>
+                    <div class="mrbayes-params-grid">
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mrbayes-ngen">Number of Generations</label>
+                            <input class="mrbayes-param-input" type="number" id="mrbayes-ngen" name="ngen" value="1000000">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mrbayes-samplefreq">Sample Frequency</label>
+                            <input class="mrbayes-param-input" type="number" id="mrbayes-samplefreq" name="samplefreq" value="100">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mrbayes-printfreq">Print Frequency</label>
+                            <input class="mrbayes-param-input" type="number" id="mrbayes-printfreq" name="printfreq" value="100000">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mrbayes-burnin">Number of Burn-ins</label>
+                            <input class="mrbayes-param-input" type="number" id="mrbayes-burnin" name="burnin" value="2500">
+                        </div>
+                    </div>
+                    <br>
+                    <button type="submit">Run MrBayes</button>
                 </form>
 
-                {% if bayes_tree %}
-                    <img src="{{ bayes_tree }}">
+                <br>
+                <p class="instructions">Or upload an existing MrBayes consensus tree file (.tre, .con.tre)</p>
+                <form id="bayesian-tre-form" method="POST" action="/view_mrbayes_tre" enctype="multipart/form-data">
+                    <input type="file" name="mrbayes_tre_file" accept=".tre,.con,.nex,.nwk,.tree" required>
+                    <br><br>
+                    <button type="submit">Load Consensus Tree</button>
+                </form>
+
+                {% if message and active_tab == 'bayesian-inference' %}
+                    <p class="text-success">{{ message }}</p>
                 {% endif %}
 
-                {% if log_file %}
-                    <a href="{{ log_file }}" download>Download MrBayes Log</a>
-                {% endif %}
-
-                {% if tree_image %}
+                {% if bayes_newick %}
                     <h3>Consensus Tree</h3>
-                    <img src="{{ bayes_tree }}" width="600">
+                    <div class="newick-workspace inference-workspace" id="bayes-workspace">
+                        <div class="tree-stage">
+                            <div id="bayes-title-label" class="tree-stage-title"></div>
+                            <div class="tree-stage-plot">
+                                <div id="bayes-y-label" class="tree-stage-ylabel"></div>
+                                <div id="bayes-viewer" class="newick-viewer inference-viewer"></div>
+                            </div>
+                            <div id="bayes-x-label" class="tree-stage-xlabel"></div>
+                        </div>
+
+                        <div class="newick-control-menu newick-control-menu--side">
+                            <div class="newick-control-menu__header">
+                                <strong>Tree Controls</strong>
+                            </div>
+
+                            <div class="newick-control-grid">
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Tree Layout</strong>
+                                    <div class="newick-button-row">
+                                        <button type="button" data-layout="hierarchical-horizontal" onclick="setInferenceTreeLayout('bayes', 'hierarchical-horizontal', this);" class="newick-mini-button is-active">Hierarchical Horizontal</button>
+                                        <button type="button" data-layout="hierarchical-vertical" onclick="setInferenceTreeLayout('bayes', 'hierarchical-vertical', this);" class="newick-mini-button">Hierarchical Vertical</button>
+                                        <button type="button" data-layout="circular" onclick="setInferenceTreeLayout('bayes', 'circular', this);" class="newick-mini-button">Circular</button>
+                                        <button type="button" data-layout="radial" onclick="setInferenceTreeLayout('bayes', 'radial', this);" class="newick-mini-button">Radial</button>
+                                        <button type="button" data-layout="diagonal-horizontal" onclick="setInferenceTreeLayout('bayes', 'diagonal-horizontal', this);" class="newick-mini-button">Diagonal Horizontal</button>
+                                        <button type="button" data-layout="diagonal-vertical" onclick="setInferenceTreeLayout('bayes', 'diagonal-vertical', this);" class="newick-mini-button">Diagonal Vertical</button>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Display Options</strong>
+                                    <div class="newick-display-options">
+                                        <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="setInferenceAlignLabels('bayes', this.checked)" checked> Align Leaves (Cladogram)</label>
+                                        <label><input type="checkbox" onchange="setInferenceBranchLengths('bayes', this.checked)"> Show Branch Lengths</label>
+                                        <label><input type="checkbox" onchange="setInferenceInternalNodes('bayes', this.checked)"> Show Internal Nodes</label>
+                                        <label title="Enable this only when you want to zoom/pan the tree"><input id="bayes-enable-interaction" type="checkbox" onchange="setInferenceInteraction('bayes', this.checked)"> Enable Mouse Interaction</label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Colours</strong>
+                                    <div class="newick-color-panel">
+                                        <label class="newick-color-field">Branch Colour<input id="bayes-branch-color" type="color" value="#111827" oninput="updateInferenceStyles('bayes')"></label>
+                                        <label class="newick-color-field">Leaf Colour<input id="bayes-leaf-color" type="color" value="#111827" oninput="updateInferenceStyles('bayes')"></label>
+                                        <label class="newick-color-field">Branch Length Colour<input id="bayes-branch-length-color" type="color" value="#111827" oninput="updateInferenceStyles('bayes')"></label>
+                                        <label class="newick-color-field">Internal Node Colour<input id="bayes-internal-node-color" type="color" value="#111827" oninput="updateInferenceStyles('bayes')"></label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card is-collapsed">
+                                    <button type="button" class="newick-card-toggle" onclick="toggleControlCard(this)" aria-expanded="false">
+                                        <span style="color: #5a2285; font-size: 14px; font-weight: 700;">Figure Labels</span>
+                                        <span class="newick-card-toggle-icon" aria-hidden="true">+</span>
+                                    </button>
+                                    <div class="axis-input-grid card-collapsible-content">
+                                        <label class="axis-input-field">Title<input id="bayes-title-input" type="text" placeholder="Tree title" oninput="updateInferenceAnnotations('bayes')"></label>
+                                        <label class="axis-input-field">X-axis<input id="bayes-x-input" type="text" placeholder="X-axis label" oninput="updateInferenceAnnotations('bayes')"></label>
+                                        <label class="axis-input-field">Y-axis<input id="bayes-y-input" type="text" placeholder="Y-axis label" oninput="updateInferenceAnnotations('bayes')"></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="newick-control-actions">
+                                <button type="button" onclick="resetInferenceView('bayes')" class="newick-action-button newick-action-button--reset"><i class="fa-solid fa-arrows-rotate"></i> Reset View</button>
+                                <button type="button" onclick="downloadInferenceTreeImage('bayes', 'PhyloDendron_MrBayes_Tree.png')" class="newick-action-button newick-action-button--download"><i class="fa-solid fa-camera"></i> Save Image</button>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if bayes_download_file %}
+                    <div class="treefile-download-row">
+                        <a href="{{ bayes_download_file }}" download>
+                            <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                        </a>
+                    </div>
                 {% endif %}
 
                 <br><br>
@@ -311,32 +478,15 @@
             <div id="distance" class="tool">
                 <h2>Distance Methods</h2>
                 <p>
-                To construct a tree, both UPGMA and NJ will use IQ-TREE to use select 
-                the best evolutionary model and calculate the phylogenetic distance matrix.
+                To construct a tree, UPGMA and NJ use IQ-TREE to select the best-fit
+                evolutionary model and compute a phylogenetic distance matrix.
                 </p>
-                <!--
-                <form id="upgma-form" method="post" action="/distance-methods" enctype="multipart/form-data">
-                    <h2>Unweighted Pair Group Method with Arithmetic Mean (UPGMA)</h2>
-                    <h4>Upload aligned sequences (FASTA format)</h4>
-                    <input type="file" name="fasta_file_upgma" accept=".fasta,.fa,.txt" required>
-                    <br><br>
-                    <button type="submit">Submit</button>
-                </form>
-                <br><br><hr><br><br>
-                <form id="nj-form" method="post" action="/NJ" enctype="multipart/form-data">
-                    <h2>Neighbor-Joining (NJ)</h2>
-                    <h4>Upload aligned sequences (FASTA format)</h4>
-                    <input type="file" name="fasta_file_nj" accept=".fasta,.fa,.txt" required>
-                    <br><br>
-                    <button type="submit">Submit</button>
-                </form>
-                -->
                 <form id = "distance-form" method="post" action="/distance-methods" enctype="multipart/form-data">
-                    <p id="instructions">Upload aligned sequences (FASTA format)</p>
+                    <p class="instructions">Upload aligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file_distance" accept=".fasta,.fa,.txt" required>
                     <br><br>
-                    <p id="instructions" for="method">Select method:</p>
-                    <input type="radio" id="nj" name="method" value="nj" required>
+                    <p class="instructions">Select method</p>
+                    <input type="radio" id="nj" name="method" value="nj" checked required>
                     <label for="nj">NJ (Neighbor-Joining)</label>
                     <input type="radio" id="upgma" name="method" value="upgma">
                     <label for="upgma">UPGMA (Unweighted Pair Group Method with Arithmetic Mean)</label>
@@ -344,10 +494,88 @@
                     <button type="submit">Submit</button>
                 </form>
                 {% if distance_error %}
-                    <p style="color:red;">{{ distance_error }}</p>
+                    <p class="text-error">{{ distance_error }}</p>
                 {% endif %}
-                {% if tree_image_distance %}
-                    <img src="{{ tree_image_distance }}">
+                {% if distance_newick %}
+                    <br><br>
+                    <h3>{{ distance_method_label or 'Distance Method' }} Tree</h3>
+
+                    {% if distance_substitution_model %}
+                    <div style="background-color: #e2e8f0; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: inline-block;">
+                        <strong style="color: #5a2285;"><i class="fa-solid fa-dna"></i> Substitution Model Used:</strong>
+                        <span style="font-family: monospace; background: white; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e0; margin-left: 8px; font-size: 14px; color: #2d3748;">
+                            {{ distance_substitution_model }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="newick-workspace inference-workspace" id="distance-workspace">
+                        <div class="tree-stage">
+                            <div id="distance-title-label" class="tree-stage-title"></div>
+                            <div class="tree-stage-plot">
+                                <div id="distance-y-label" class="tree-stage-ylabel"></div>
+                                <div id="distance-viewer" class="newick-viewer inference-viewer"></div>
+                            </div>
+                            <div id="distance-x-label" class="tree-stage-xlabel"></div>
+                        </div>
+
+                        <div class="newick-control-menu newick-control-menu--side">
+                            <div class="newick-control-menu__header">
+                                <strong>Tree Controls</strong>
+                            </div>
+
+                            <div class="newick-control-grid">
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Tree Layout</strong>
+                                    <div class="newick-button-row">
+                                        <button type="button" data-layout="hierarchical-horizontal" onclick="setInferenceTreeLayout('distance', 'hierarchical-horizontal', this);" class="newick-mini-button is-active">Hierarchical Horizontal</button>
+                                        <button type="button" data-layout="hierarchical-vertical" onclick="setInferenceTreeLayout('distance', 'hierarchical-vertical', this);" class="newick-mini-button">Hierarchical Vertical</button>
+                                        <button type="button" data-layout="circular" onclick="setInferenceTreeLayout('distance', 'circular', this);" class="newick-mini-button">Circular</button>
+                                        <button type="button" data-layout="radial" onclick="setInferenceTreeLayout('distance', 'radial', this);" class="newick-mini-button">Radial</button>
+                                        <button type="button" data-layout="diagonal-horizontal" onclick="setInferenceTreeLayout('distance', 'diagonal-horizontal', this);" class="newick-mini-button">Diagonal Horizontal</button>
+                                        <button type="button" data-layout="diagonal-vertical" onclick="setInferenceTreeLayout('distance', 'diagonal-vertical', this);" class="newick-mini-button">Diagonal Vertical</button>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Display Options</strong>
+                                    <div class="newick-display-options">
+                                        <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="setInferenceAlignLabels('distance', this.checked)" checked> Align Leaves (Cladogram)</label>
+                                        <label><input type="checkbox" onchange="setInferenceBranchLengths('distance', this.checked)"> Show Branch Lengths</label>
+                                        <label><input type="checkbox" onchange="setInferenceInternalNodes('distance', this.checked)"> Show Internal Nodes</label>
+                                        <label title="Enable this only when you want to zoom/pan the tree"><input id="distance-enable-interaction" type="checkbox" onchange="setInferenceInteraction('distance', this.checked)"> Enable Mouse Interaction</label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Colours</strong>
+                                    <div class="newick-color-panel">
+                                        <label class="newick-color-field">Branch Colour<input id="distance-branch-color" type="color" value="#111827" oninput="updateInferenceStyles('distance')"></label>
+                                        <label class="newick-color-field">Leaf Colour<input id="distance-leaf-color" type="color" value="#111827" oninput="updateInferenceStyles('distance')"></label>
+                                        <label class="newick-color-field">Branch Length Colour<input id="distance-branch-length-color" type="color" value="#111827" oninput="updateInferenceStyles('distance')"></label>
+                                        <label class="newick-color-field">Internal Node Colour<input id="distance-internal-node-color" type="color" value="#111827" oninput="updateInferenceStyles('distance')"></label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card is-collapsed">
+                                    <button type="button" class="newick-card-toggle" onclick="toggleControlCard(this)" aria-expanded="false">
+                                        <span style="color: #5a2285; font-size: 14px; font-weight: 700;">Figure Labels</span>
+                                        <span class="newick-card-toggle-icon" aria-hidden="true">+</span>
+                                    </button>
+                                    <div class="axis-input-grid card-collapsible-content">
+                                        <label class="axis-input-field">Title<input id="distance-title-input" type="text" placeholder="Tree title" oninput="updateInferenceAnnotations('distance')"></label>
+                                        <label class="axis-input-field">X-axis<input id="distance-x-input" type="text" placeholder="X-axis label" oninput="updateInferenceAnnotations('distance')"></label>
+                                        <label class="axis-input-field">Y-axis<input id="distance-y-input" type="text" placeholder="Y-axis label" oninput="updateInferenceAnnotations('distance')"></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="newick-control-actions">
+                                <button type="button" onclick="resetInferenceView('distance')" class="newick-action-button newick-action-button--reset"><i class="fa-solid fa-arrows-rotate"></i> Reset View</button>
+                                <button type="button" onclick="downloadInferenceTreeImage('distance', 'PhyloDendron_Distance_Tree.png')" class="newick-action-button newick-action-button--download"><i class="fa-solid fa-camera"></i> Save Image</button>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
                 <br><br>
                 <p style="bottom: 0; left: 0; width: 100%;">
@@ -379,13 +607,13 @@
                 
                 <form id="parsimony-form" method="POST" action="/run_mpboot" enctype="multipart/form-data">
                     <input type="hidden" name="active_tab" value="parsimony">
-                    <p id="instructions">Upload Aligned Sequences (FASTA):</p>
+                    <p class="instructions">Upload aligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
-                    <br><br>
+                    <br>
 
-                    <div class="options-group" style="background-color: #F6EDFF; padding: 15px; border-radius: 8px; margin-bottom: 20px; max-width: 500px;">
-                        <label style="font-weight: bold; color: #5a2285;"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
-                        <select id="mpboot-preset" onchange="applyMPBootPreset()" style="padding: 5px; width: 100%; margin-top: 10px; font-size: 14px;">
+                    <div class="options-group preset-group">
+                        <label class="preset-label"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
+                        <select id="mpboot-preset" onchange="applyMPBootPreset()" class="control-compact preset-select">
                             <option value="standard">Standard (Default Balance)</option>
                             <option value="fast">Fast Preview (Quick Topology)</option>
                             <option value="thorough">Thorough (Deep Tree Search)</option>
@@ -393,45 +621,100 @@
                         </select>
                     </div>
 
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div class="options-group">
-                            <p id="instructions" title="-bb">Ultrafast Bootstraps:</p>
-                            <input type="number" id="mpb-bb" name="bootstraps" value="1000" min="0" style="padding: 5px; width: 120px;">
+                    <p class="instructions">Ultrafast Bootstraps</p>
+                    <div class="mrbayes-params-grid">
+                        <div class="mrbayes-param-group">
+                            <input class="mrbayes-param-input" type="number" id="mpb-bb" name="bootstraps" value="1000" min="0">
                         </div>
-                        <!--
-                        <div class="options-group">
-                            <p id="instructions" title="-n">Max Iterations:</p>
-                            <input type="number" id="mpb-n" name="iterations" value="1000" min="1" style="padding: 5px; width: 120px;">
-                        </div>
-
-                        <div class="options-group">
-                            <p id="instructions" title="-nstop">Early Stop:</p>
-                            <input type="number" id="mpb-nstop" name="nstop" value="100" min="1" style="padding: 5px; width: 120px;">
-                        </div>
-                        -->
                     </div>
-                    <br><br>
-                    
+                    <br>
                     <button type="submit">
                         Generate Parsimony Tree
                     </button>
                 </form>
 
                 {% if error and active_tab == 'parsimony' %}
-                    <p style="color:red;">{{ error }}</p>
+                    <p class="text-error">{{ error }}</p>
                 {% endif %}
 
-                {% if tree_image_mpboot %}
+                {% if mpboot_newick %}
                     <br><br>
                     <h3>MPBoot Consensus Tree</h3>
-                    <img src="{{ tree_image_mpboot }}" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
+                    <div class="newick-workspace inference-workspace" id="mpboot-workspace">
+                        <div class="tree-stage">
+                            <div id="mpboot-title-label" class="tree-stage-title"></div>
+                            <div class="tree-stage-plot">
+                                <div id="mpboot-y-label" class="tree-stage-ylabel"></div>
+                                <div id="mpboot-viewer" class="newick-viewer inference-viewer"></div>
+                            </div>
+                            <div id="mpboot-x-label" class="tree-stage-xlabel"></div>
+                        </div>
+
+                        <div class="newick-control-menu newick-control-menu--side">
+                            <div class="newick-control-menu__header">
+                                <strong>Tree Controls</strong>
+                            </div>
+
+                            <div class="newick-control-grid">
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Tree Layout</strong>
+                                    <div class="newick-button-row">
+                                        <button type="button" data-layout="hierarchical-horizontal" onclick="setInferenceTreeLayout('mpboot', 'hierarchical-horizontal', this);" class="newick-mini-button is-active">Hierarchical Horizontal</button>
+                                        <button type="button" data-layout="hierarchical-vertical" onclick="setInferenceTreeLayout('mpboot', 'hierarchical-vertical', this);" class="newick-mini-button">Hierarchical Vertical</button>
+                                        <button type="button" data-layout="circular" onclick="setInferenceTreeLayout('mpboot', 'circular', this);" class="newick-mini-button">Circular</button>
+                                        <button type="button" data-layout="radial" onclick="setInferenceTreeLayout('mpboot', 'radial', this);" class="newick-mini-button">Radial</button>
+                                        <button type="button" data-layout="diagonal-horizontal" onclick="setInferenceTreeLayout('mpboot', 'diagonal-horizontal', this);" class="newick-mini-button">Diagonal Horizontal</button>
+                                        <button type="button" data-layout="diagonal-vertical" onclick="setInferenceTreeLayout('mpboot', 'diagonal-vertical', this);" class="newick-mini-button">Diagonal Vertical</button>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Display Options</strong>
+                                    <div class="newick-display-options">
+                                        <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="setInferenceAlignLabels('mpboot', this.checked)" checked> Align Leaves (Cladogram)</label>
+                                        <label><input type="checkbox" onchange="setInferenceBranchLengths('mpboot', this.checked)"> Show Branch Lengths</label>
+                                        <label><input type="checkbox" onchange="setInferenceInternalNodes('mpboot', this.checked)"> Show Internal Nodes</label>
+                                        <label title="Enable this only when you want to zoom/pan the tree"><input id="mpboot-enable-interaction" type="checkbox" onchange="setInferenceInteraction('mpboot', this.checked)"> Enable Mouse Interaction</label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Colours</strong>
+                                    <div class="newick-color-panel">
+                                        <label class="newick-color-field">Branch Colour<input id="mpboot-branch-color" type="color" value="#111827" oninput="updateInferenceStyles('mpboot')"></label>
+                                        <label class="newick-color-field">Leaf Colour<input id="mpboot-leaf-color" type="color" value="#111827" oninput="updateInferenceStyles('mpboot')"></label>
+                                        <label class="newick-color-field">Branch Length Colour<input id="mpboot-branch-length-color" type="color" value="#111827" oninput="updateInferenceStyles('mpboot')"></label>
+                                        <label class="newick-color-field">Internal Node Colour<input id="mpboot-internal-node-color" type="color" value="#111827" oninput="updateInferenceStyles('mpboot')"></label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card is-collapsed">
+                                    <button type="button" class="newick-card-toggle" onclick="toggleControlCard(this)" aria-expanded="false">
+                                        <span style="color: #5a2285; font-size: 14px; font-weight: 700;">Figure Labels</span>
+                                        <span class="newick-card-toggle-icon" aria-hidden="true">+</span>
+                                    </button>
+                                    <div class="axis-input-grid card-collapsible-content">
+                                        <label class="axis-input-field">Title<input id="mpboot-title-input" type="text" placeholder="Tree title" oninput="updateInferenceAnnotations('mpboot')"></label>
+                                        <label class="axis-input-field">X-axis<input id="mpboot-x-input" type="text" placeholder="X-axis label" oninput="updateInferenceAnnotations('mpboot')"></label>
+                                        <label class="axis-input-field">Y-axis<input id="mpboot-y-input" type="text" placeholder="Y-axis label" oninput="updateInferenceAnnotations('mpboot')"></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="newick-control-actions">
+                                <button type="button" onclick="resetInferenceView('mpboot')" class="newick-action-button newick-action-button--reset"><i class="fa-solid fa-arrows-rotate"></i> Reset View</button>
+                                <button type="button" onclick="downloadInferenceTreeImage('mpboot', 'PhyloDendron_Parsimony_Tree.png')" class="newick-action-button newick-action-button--download"><i class="fa-solid fa-camera"></i> Save Image</button>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
 
                 {% if mpboot_tree_file %}
-                    <br><br>
-                    <a href="{{ mpboot_tree_file }}" download>
-                        <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
-                    </a>
+                    <div class="treefile-download-row">
+                        <a href="{{ mpboot_tree_file }}" download>
+                            <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                        </a>
+                    </div>
                 {% endif %}
             </div>
 
@@ -441,14 +724,14 @@
                 <p>IQ-TREE uses ModelFinder to pick the best substitution model and builds an ML tree.</p>
                 
                 <form id="iqtree-form" method="POST" action="/run_iqtree" enctype="multipart/form-data">
-                    <input type="hidden" name="active_tab" value="ml">
-                    <p id="instructions">Upload Aligned Sequences (FASTA):</p>
+                    <input type="hidden" name="active_tab" value="maximum-likelihood">
+                    <p class="instructions">Upload aligned sequences (FASTA)</p>
                     <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
-                    <br><br>
+                    <br>
 
-                    <div class="options-group" style="background-color: #F6EDFF; padding: 15px; border-radius: 8px; margin-bottom: 20px; width: 95%;">
-                        <label style="font-weight: bold; color: #5a2285;"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
-                        <select id="iqtree-preset" onchange="applyIQTreePreset()" style="padding: 5px; width: 100%; margin-top: 10px; font-size: 14px;">
+                    <div class="options-group preset-group">
+                        <label class="preset-label"><i class="fa-solid fa-lightbulb"></i> Suggested Presets:</label>
+                        <select id="iqtree-preset" onchange="applyIQTreePreset()" class="control-compact preset-select">
                             <option value="standard">Standard (ModelFinder + 1000 UFBoot + 1000 SH-aLRT)</option>
                             <option value="fast">Fast Search (Topology Only / No Bootstraps)</option>
                             <option value="thorough">Thorough (Deep Bootstrapping)</option>
@@ -456,29 +739,29 @@
                         </select>
                     </div>
 
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div class="options-group">
-                            <p id="instructions" title="-m">Substitution Model:</p>
-                            <input type="text" id="iq-m" name="model" value="MFP" style="padding: 5px; width: 120px;" placeholder="e.g. MFP, GTR+G">
+                    <p class="instructions">Parameters</p>
+                    <div class="mrbayes-params-grid iqtree-params-grid">
+                        <div class="mrbayes-param-group iqtree-param-model">
+                            <label class="mrbayes-param-label" for="iq-m" title="-m">Substitution Model</label>
+                            <input class="mrbayes-param-input" type="text" id="iq-m" name="model" value="MFP" placeholder="e.g. MFP, GTR+G">
                         </div>
 
-                        <div class="options-group">
-                            <p id="instructions" title="-bb">Ultrafast Bootstraps:</p>
-                            <input type="number" id="iq-bb" name="bootstraps" value="1000" min="0" style="padding: 5px; width: 120px;">
+                        <div class="mrbayes-param-group iqtree-param-bb">
+                            <label class="mrbayes-param-label" for="iq-bb" title="-bb">Ultrafast Bootstraps</label>
+                            <input class="mrbayes-param-input" type="number" id="iq-bb" name="bootstraps" value="1000" min="0">
                         </div>
 
-                        <div class="options-group">
-                            <p id="instructions" title="-alrt">SH-aLRT Replicates:</p>
-                            <input type="number" id="iq-alrt" name="alrt" value="1000" min="0" style="padding: 5px; width: 120px;">
+                        <div class="mrbayes-param-group iqtree-param-alrt">
+                            <label class="mrbayes-param-label" for="iq-alrt" title="-alrt">SH-aLRT Replicates</label>
+                            <input class="mrbayes-param-input" type="number" id="iq-alrt" name="alrt" value="1000" min="0">
                         </div>
                     </div>
-                    <br><br>
-                    
+                    <br>
                     <button type="submit">Run IQ-TREE</button>
                 </form>
 
-                {% if error and active_tab == 'ml' %}
-                    <p style="color:red;">{{ error }}</p>
+                {% if error and active_tab == 'maximum-likelihood' %}
+                    <p class="text-error">{{ error }}</p>
                 {% endif %}
 
                 {% if iqtree_newick %}
@@ -494,183 +777,139 @@
                     </div>
                     {% endif %}
                     
-                    <div style="margin-bottom: 15px; background-color: #F6EDFF; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
-                        
-                        <div>
-                            <strong style="color: #5a2285; font-size: 14px;">Tree Layout:</strong><br>
-                            <div style="margin-top: 8px; display: flex; gap: 5px;">
-                                <button type="button" onclick="iqViewer.setTreeType('rectangular');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Rectangular</button>
-                                <button type="button" onclick="iqViewer.setTreeType('circular');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Circular</button>
-                                <button type="button" onclick="iqViewer.setTreeType('radial');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Radial</button>
-                                <button type="button" onclick="iqViewer.setTreeType('diagonal');" style="padding: 6px 12px; font-size: 12px; background-color: white; color: #5a2285; border: 1px solid #cbd5e0; border-radius: 4px; cursor: pointer; margin:0;">Diagonal</button>
+                    <div class="newick-workspace inference-workspace" id="iqtree-workspace">
+                        <div class="tree-stage">
+                            <div id="iqtree-title-label" class="tree-stage-title"></div>
+                            <div class="tree-stage-plot">
+                                <div id="iqtree-y-label" class="tree-stage-ylabel"></div>
+                                <div id="iqtree-viewer" class="newick-viewer inference-viewer"></div>
                             </div>
+                            <div id="iqtree-x-label" class="tree-stage-xlabel"></div>
                         </div>
 
-                        <div>
-                            <strong style="color: #5a2285; font-size: 14px;">Display Options:</strong><br>
-                            <div style="margin-top: 13px; display: flex; gap: 15px; font-size: 14px; color: #2d3748;">
-                                <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="iqViewer.alignLabels = this.checked; iqViewer.draw();" checked> Align Leaves (Cladogram)</label>
-                                <label><input type="checkbox" onchange="iqViewer.showBranchLengthLabels = this.checked; iqViewer.draw();"> Show Branch Lengths</label>
-                                <label><input type="checkbox" onchange="iqViewer.showInternalNodeLabels = this.checked; iqViewer.draw();"> Show Internal Nodes (Bootstraps)</label>
+                        <div class="newick-control-menu newick-control-menu--side">
+                            <div class="newick-control-menu__header">
+                                <strong>Tree Controls</strong>
                             </div>
-                        </div>
 
-                        <div style="margin-left: auto;">
-                            <button type="button" onclick="downloadTreeImage()" style="background-color: #4f46e5; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin: 0;">
-                                <i class="fa-solid fa-camera"></i> Save Image (PNG)
-                            </button>
+                            <div class="newick-control-grid">
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Tree Layout</strong>
+                                    <div class="newick-button-row">
+                                        <button type="button" data-layout="hierarchical-horizontal" onclick="setInferenceTreeLayout('iqtree', 'hierarchical-horizontal', this);" class="newick-mini-button is-active">Hierarchical Horizontal</button>
+                                        <button type="button" data-layout="hierarchical-vertical" onclick="setInferenceTreeLayout('iqtree', 'hierarchical-vertical', this);" class="newick-mini-button">Hierarchical Vertical</button>
+                                        <button type="button" data-layout="circular" onclick="setInferenceTreeLayout('iqtree', 'circular', this);" class="newick-mini-button">Circular</button>
+                                        <button type="button" data-layout="radial" onclick="setInferenceTreeLayout('iqtree', 'radial', this);" class="newick-mini-button">Radial</button>
+                                        <button type="button" data-layout="diagonal-horizontal" onclick="setInferenceTreeLayout('iqtree', 'diagonal-horizontal', this);" class="newick-mini-button">Diagonal Horizontal</button>
+                                        <button type="button" data-layout="diagonal-vertical" onclick="setInferenceTreeLayout('iqtree', 'diagonal-vertical', this);" class="newick-mini-button">Diagonal Vertical</button>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Display Options</strong>
+                                    <div class="newick-display-options">
+                                        <label title="Uncheck this to view proportional edge lengths"><input type="checkbox" onchange="setInferenceAlignLabels('iqtree', this.checked)" checked> Align Leaves (Cladogram)</label>
+                                        <label><input type="checkbox" onchange="setInferenceBranchLengths('iqtree', this.checked)"> Show Branch Lengths</label>
+                                        <label><input type="checkbox" onchange="setInferenceInternalNodes('iqtree', this.checked)"> Show Internal Nodes</label>
+                                        <label title="Enable this only when you want to zoom/pan the tree"><input id="iqtree-enable-interaction" type="checkbox" onchange="setInferenceInteraction('iqtree', this.checked)"> Enable Mouse Interaction</label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card">
+                                    <strong style="color: #5a2285; font-size: 14px;">Colours</strong>
+                                    <div class="newick-color-panel">
+                                        <label class="newick-color-field">Branch Colour<input id="iqtree-branch-color" type="color" value="#111827" oninput="updateInferenceStyles('iqtree')"></label>
+                                        <label class="newick-color-field">Leaf Colour<input id="iqtree-leaf-color" type="color" value="#111827" oninput="updateInferenceStyles('iqtree')"></label>
+                                        <label class="newick-color-field">Branch Length Colour<input id="iqtree-branch-length-color" type="color" value="#111827" oninput="updateInferenceStyles('iqtree')"></label>
+                                        <label class="newick-color-field">Internal Node Colour<input id="iqtree-internal-node-color" type="color" value="#111827" oninput="updateInferenceStyles('iqtree')"></label>
+                                    </div>
+                                </div>
+
+                                <div class="newick-control-card is-collapsed">
+                                    <button type="button" class="newick-card-toggle" onclick="toggleControlCard(this)" aria-expanded="false">
+                                        <span style="color: #5a2285; font-size: 14px; font-weight: 700;">Figure Labels</span>
+                                        <span class="newick-card-toggle-icon" aria-hidden="true">+</span>
+                                    </button>
+                                    <div class="axis-input-grid card-collapsible-content">
+                                        <label class="axis-input-field">Title<input id="iqtree-title-input" type="text" placeholder="Tree title" oninput="updateInferenceAnnotations('iqtree')"></label>
+                                        <label class="axis-input-field">X-axis<input id="iqtree-x-input" type="text" placeholder="X-axis label" oninput="updateInferenceAnnotations('iqtree')"></label>
+                                        <label class="axis-input-field">Y-axis<input id="iqtree-y-input" type="text" placeholder="Y-axis label" oninput="updateInferenceAnnotations('iqtree')"></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="newick-control-actions">
+                                <button type="button" onclick="resetInferenceView('iqtree')" class="newick-action-button newick-action-button--reset"><i class="fa-solid fa-arrows-rotate"></i> Reset View</button>
+                                <button type="button" onclick="downloadInferenceTreeImage('iqtree', 'PhyloDendron_MaximumLikelihood_Tree.png')" class="newick-action-button newick-action-button--download"><i class="fa-solid fa-camera"></i> Save Image</button>
+                            </div>
                         </div>
                     </div>
-
-                    <div id="iqtree-viewer" style="width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px; background-color: white;"></div>
-
-                    <script>
-                        var iqViewer; 
-                        
-                        // We declare this at the top so BOTH the viewer and exporter can use it
-                        var rawTreeString = {{ iqtree_newick | tojson | safe }};
-
-                        // Global function to extract the canvas and save it as a High-Res PNG
-                        window.downloadTreeImage = function() {
-                            
-                            // 1. Create a massive, invisible container for 4K rendering
-                            var hiddenContainer = document.createElement('div');
-                            hiddenContainer.id = "hidden-export-container";
-                            hiddenContainer.style.width = "3000px";
-                            hiddenContainer.style.height = "3000px";
-                            hiddenContainer.style.position = "absolute";
-                            hiddenContainer.style.left = "-9999px"; // Hide it way off-screen
-                            document.body.appendChild(hiddenContainer);
-
-                            // 2. Initialize a temporary viewer inside the hidden container
-                            var exportViewer;
-                            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                                exportViewer = Phylocanvas.default.createTree('hidden-export-container');
-                            } else if (typeof Phylocanvas.createTree === 'function') {
-                                exportViewer = Phylocanvas.createTree('hidden-export-container');
-                            } else {
-                                exportViewer = new Phylocanvas.Tree('hidden-export-container');
-                            }
-                            
-                            // 3. Copy the user's exact current layout...
-                            exportViewer.setTreeType(iqViewer.treeType);
-                            exportViewer.alignLabels = iqViewer.alignLabels;
-                            exportViewer.showBranchLengthLabels = iqViewer.showBranchLengthLabels;
-                            exportViewer.showInternalNodeLabels = iqViewer.showInternalNodeLabels;
-                            
-                            // ...But scale up the graphics for a 4K resolution!
-                            exportViewer.textSize = 28; 
-                            exportViewer.lineWidth = 4; 
-                            
-                            // 4. Load the tree data and draw
-                            exportViewer.load(rawTreeString);
-                            exportViewer.draw();
-
-                            // 5. Wait a fraction of a second for it to render, then export
-                            setTimeout(function() {
-                                var canvas = hiddenContainer.querySelector('canvas');
-                                if (canvas) {
-                                    var tempCanvas = document.createElement('canvas');
-                                    tempCanvas.width = canvas.width;
-                                    tempCanvas.height = canvas.height;
-                                    var ctx = tempCanvas.getContext('2d');
-                                    
-                                    // Add white background so it doesn't turn invisible in dark mode
-                                    ctx.fillStyle = '#FFFFFF';
-                                    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                                    ctx.drawImage(canvas, 0, 0);
-                                    
-                                    // Trigger download
-                                    var link = document.createElement('a');
-                                    link.download = 'PhyloDendron_HighRes_Tree.png';
-                                    link.href = tempCanvas.toDataURL('image/png', 1.0); // 1.0 = Max quality
-                                    link.click();
-                                }
-                                
-                                // 6. Destroy the hidden container so it doesn't break the page
-                                document.body.removeChild(hiddenContainer);
-                            }, 250);
-                        };
-
-                        function initPhyloCanvas() {
-                            var container = document.getElementById('iqtree-viewer');
-                            
-                            if (container.offsetWidth === 0) {
-                                setTimeout(initPhyloCanvas, 100);
-                                return;
-                            }
-                            
-                            try {
-                                if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                                    iqViewer = Phylocanvas.default.createTree('iqtree-viewer');
-                                } else if (typeof Phylocanvas.createTree === 'function') {
-                                    iqViewer = Phylocanvas.createTree('iqtree-viewer');
-                                } else if (typeof Phylocanvas.Tree === 'function') {
-                                    iqViewer = new Phylocanvas.Tree('iqtree-viewer');
-                                }
-                                
-                                iqViewer.setTreeType('rectangular');
-                                iqViewer.alignLabels = true;
-                                iqViewer.textSize = 14;
-                                iqViewer.lineWidth = 2;
-                                
-                                iqViewer.load(rawTreeString);
-                                iqViewer.draw();
-                                
-                            } catch (err) {
-                                console.error("PHYLOCANVAS CRASHED: ", err);
-                                container.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
-                            }
-                        }
-
-                        initPhyloCanvas();
-                    </script>
                 {% endif %}
 
                 {% if iqtree_download_file %}
-                    <br><br>
-                    <a href="{{ iqtree_download_file }}" download>
-                        <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
-                    </a>
+                    <div class="treefile-download-row">
+                        <a href="{{ iqtree_download_file }}" download>
+                            <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                        </a>
+                    </div>
                 {% endif %}
             </div>
-            <!--
-            <div id="maximum-likelihood" class="tool">
-                <h2>Maximum Likelihood (IQ-TREE)</h2>
-                <p>IQ-TREE uses ModelFinder to pick the best substitution model and builds an ML tree.</p>
-                
-                <form onsubmit="handleAnalysis(event, '/run_iqtree')">
-                    <p id="instructions">Upload Aligned Sequences (FASTA):</p>
-                    <input type="file" name="alignment_file" required>
-                    <br><br>
-                    <button type="submit">Run IQ-TREE</button>
-                </form>
-            </div>
-            -->
-
             <!-- File Conversion -->
             <div id="conversion" class="tool">
-                <h2>Convert a FASTA file to a NEXUS file</h2>
-                <form method="post" action="/convert" enctype="multipart/form-data">
-                    <p id="instructions">Upload FASTA file:</p>
-                    <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" required>
+                <h2>Convert Sequence File Formats</h2>
+                <form id="conversion-form" method="post" action="/convert" enctype="multipart/form-data">
+                    <input type="hidden" name="active_tab" value="conversion">
+                    <p class="instructions">Upload sequence file</p>
+                    <input id="conversion-sequence-file" type="file" name="sequence_file" required>
 
-                    <p id="instructions">Select molecule type:</p>
+                    <div class="conversion-format-grid">
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="conversion-input-format">Input format</label>
+                            <select id="conversion-input-format" name="input_format" class="mrbayes-param-input">
+                                <option value="fasta" selected>FASTA</option>
+                                <option value="fasta-2line">FASTA (2-line)</option>
+                                <option value="genbank">GenBank</option>
+                                <option value="embl">EMBL</option>
+                                <option value="nexus">NEXUS</option>
+                                <option value="phylip">PHYLIP</option>
+                                <option value="phylip-relaxed">PHYLIP Relaxed</option>
+                                <option value="stockholm">Stockholm</option>
+                                <option value="tab">Tab-separated</option>
+                            </select>
+                        </div>
+
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="conversion-output-format">Output format</label>
+                            <select id="conversion-output-format" name="output_format" class="mrbayes-param-input">
+                                <option value="nexus" selected>NEXUS</option>
+                                <option value="fasta">FASTA</option>
+                                <option value="fasta-2line">FASTA (2-line)</option>
+                                <option value="genbank">GenBank</option>
+                                <option value="embl">EMBL</option>
+                                <option value="phylip">PHYLIP</option>
+                                <option value="phylip-relaxed">PHYLIP Relaxed</option>
+                                <option value="stockholm">Stockholm</option>
+                                <option value="tab">Tab-separated</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p class="instructions">Molecule type</p>
                     <label>
-                        <input type="radio" name="molecule_type" value="DNA" required> DNA
+                        <input class="conversion-molecule-type" type="radio" name="molecule_type" value="DNA"> DNA
                     </label>
                     <label>
-                        <input type="radio" name="molecule_type" value="RNA"> RNA
+                        <input class="conversion-molecule-type" type="radio" name="molecule_type" value="RNA"> RNA
                     </label>
                     <label>
-                        <input type="radio" name="molecule_type" value="protein"> Protein
+                        <input class="conversion-molecule-type" type="radio" name="molecule_type" value="protein"> Protein
                     </label>
-                    <br><br>
-                    <button type="submit">Download</button>
+                    <div id="conversion-molecule-help" style="font-size: 12px; color: #475569; margin-top: 8px;"></div>
+                    <button id="conversion-download-btn" type="submit">Download</button>
                 </form>
 
                 {% if error %}
-                    <p style="color:red;">{{ error }}</p>
+                    <p class="text-error">{{ error }}</p>
                 {% endif %}
 
                 {% if nexus_output %}
@@ -692,97 +931,18 @@
         </div>
     </div>
 
-<script src="{{ url_for('static', filename='script.js') }}"></script>
 <script>
-window.onload = function() {
-    {% if active_tab %}
-    document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
-    document.getElementById("{{ active_tab }}").classList.add('active');
-    {% endif %}
-
-    // ----------------------------------------------------
-    // INITIALIZE PHYLOCANVAS (Guaranteed Visible!)
-    // ----------------------------------------------------
-    {% if iqtree_newick %}
-        // The tab is now fully visible, so we can safely draw the tree
-        iqViewer = Phylocanvas.createTree('iqtree-viewer');
-        iqViewer.load({{ iqtree_newick | tojson | safe }});
-        
-        iqViewer.setTreeType('rectangular');
-        iqViewer.alignLabels = true; 
-        iqViewer.textSize = 14;
-        iqViewer.lineWidth = 2;
-    {% endif %}
-
-    // ----------------------------------------------------
-    // LOADING SPINNER LOGIC (Grouped for all tools)
-    // ----------------------------------------------------
-    var asyncForms = [
-        "#distance-form", 
-        "#mafft-form", 
-        "#clustalo-form", 
-        "#bayesian-inference-form", 
-        "#muscle-form",
-        "#parsimony-form",
-        "#iqtree-form"
-    ];
-
-    asyncForms.forEach(function(formId) {
-        var form = document.querySelector(formId);
-        if (form) {
-            form.addEventListener("submit", function() {
-                document.getElementById("loading-overlay").style.display = "flex";
-            });
-        }
-    });
-
-    // ----------------------------------------------------
-    // MPBOOT & IQTREE PRESET LOGIC
-    // ----------------------------------------------------
-    
-    // MPBoot Presets
-    window.applyMPBootPreset = function() {
-        var preset = document.getElementById("mpboot-preset").value;
-        var bb = document.getElementById("mpb-bb");
-
-        if (preset === "standard") {
-            bb.value = 1000; 
-        } else if (preset === "fast") {
-            bb.value = 0; // Skips bootstraps for a quick tree
-        } else if (preset === "thorough") {
-            bb.value = 2000; 
-        }
-    };
-
-    // MPBoot Custom Dropdown Trigger
-    var mpbBb = document.getElementById("mpb-bb");
-    if(mpbBb) {
-        mpbBb.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
-    };
-
-    // IQ-TREE Presets
-    window.applyIQTreePreset = function() {
-        var preset = document.getElementById("iqtree-preset").value;
-        var m = document.getElementById("iq-m");
-        var bb = document.getElementById("iq-bb");
-        var alrt = document.getElementById("iq-alrt");
-
-        if (preset === "standard") {
-            m.value = "MFP"; bb.value = 1000; alrt.value = 1000;
-        } else if (preset === "fast") {
-            m.value = "MFP"; bb.value = 0; alrt.value = 0;
-        } else if (preset === "thorough") {
-            m.value = "MFP"; bb.value = 2000; alrt.value = 2000; 
-        }
-    };
-
-    // IQ-TREE Custom Dropdown Trigger
-    ["iq-m", "iq-bb", "iq-alrt"].forEach(function(id) {
-        var el = document.getElementById(id);
-        if(el) el.addEventListener('input', () => document.getElementById("iqtree-preset").value = "custom");
-    });
+window.PHYLODENDRON_CONFIG = {
+    activeTab: {{ active_tab | default('main-page', true) | tojson | safe }},
+    autoDownloadUrl: {{ auto_download_url | default(none, true) | tojson | safe }},
+    treeNewick: {{ tree_newick | default(none, true) | tojson | safe }},
+    bayesNewick: {{ bayes_newick | default(none, true) | tojson | safe }},
+    iqtreeNewick: {{ iqtree_newick | default(none, true) | tojson | safe }},
+    mpbootNewick: {{ mpboot_newick | default(none, true) | tojson | safe }},
+    distanceNewick: {{ distance_newick | default(none, true) | tojson | safe }}
 };
 </script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
 </html>
