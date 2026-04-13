@@ -11,7 +11,7 @@ body {
     justify-content: center;
     align-items: center;
     gap: 8px;
-    padding: 12px;
+    padding: 10px 12px 16px;
     background: #1E0233;
     backdrop-filter: blur(8px);
     position: sticky;
@@ -23,7 +23,7 @@ body {
     background: none;
     border: none;
     color: #e2e8f0;
-    padding: 10px 16px;
+    padding: 8px 16px;
     font-size: 20px;
     border-radius: 8px;
     cursor: pointer;
@@ -54,7 +54,7 @@ body {
 .dropdown-content {
     font-size: 16px;
     position: absolute;
-    top: 110%;
+    top: 100%;
     left: 0;
     min-width: 200px;
     background: #1E0233;
@@ -62,6 +62,7 @@ body {
     overflow: hidden;
     opacity: 0;
     transition: all 0.25s ease;
+    margin-top: 0;
 }
 
 /*  DROPDOWN ITEMS  */
@@ -83,10 +84,15 @@ body {
 }
 
 /*  SHOW DROPDOWN  */
-.dropdown:hover .dropdown-content {
+.dropbtn:hover ~ .dropdown-content,
+.dropdown-content:hover {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+}
+
+.dropdown-content {
+    pointer-events: none;
 }
 
 .main {
@@ -130,9 +136,164 @@ h2 {
     padding-left: 10px;
 }
 
-#instructions {
+.instructions {
     font-size: 18px;  
     font-weight: bold;
+}
+
+.muscle-control-label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.text-error {
+    color: red;
+}
+
+.text-success {
+    color: green;
+}
+
+.control-compact {
+    padding: 5px;
+    font-size: 14px;
+}
+
+.preset-group {
+    background-color: #F6EDFF;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.preset-label {
+    font-weight: bold;
+    color: #5a2285;
+}
+
+.preset-select {
+    width: 100%;
+    margin-top: 10px;
+    height: 42px;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fafbfc;
+    border: 1px solid #dcdfe6;
+    color: #2d3748;
+}
+
+.preset-select.control-compact {
+    padding: 10px 12px;
+}
+
+.preset-select option {
+    background: #fafbfc;
+    color: #2d3748;
+}
+
+#conversion-sequence-file {
+    margin-top: 0;
+    margin-bottom: 24px;
+}
+
+.mrbayes-params-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+.mrbayes-param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mrbayes-param-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #444;
+}
+
+.mrbayes-param-input {
+    width: 100%;
+    min-height: 42px;
+    margin-top: 0;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #dcdfe6;
+    font-size: 14px;
+    background: #fafbfc;
+    transition: all 0.2s ease;
+}
+
+select.mrbayes-param-input {
+    height: 42px;
+}
+
+.mrbayes-param-input:focus {
+    background: #fff;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+    outline: none;
+}
+
+.mrbayes-param-group:hover .mrbayes-param-input {
+    border-color: #bfc7d1;
+}
+
+.iqtree-param-model .mrbayes-param-input {
+    width: 98.5%;
+}
+
+.conversion-format-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.conversion-format-grid .mrbayes-param-label {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.conversion-format-grid .mrbayes-param-group {
+    gap: 15px;
+}
+
+#conversion-download-btn {
+    margin-top: 22px;
+}
+
+@media (min-width: 600px) {
+    .conversion-format-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (min-width: 600px) {
+    .mrbayes-params-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .iqtree-params-grid .iqtree-param-model {
+        grid-column: 1;
+    }
+
+    .iqtree-params-grid .iqtree-param-bb {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .iqtree-params-grid .iqtree-param-alrt {
+        grid-column: 2;
+        grid-row: 2;
+    }
 }
 
 
@@ -145,6 +306,354 @@ input[type="number"] {
     border-radius: 5px;
     border: 1px solid #cbd5e0;
     font-size: 14px;
+}
+
+.newick-form {
+    margin-bottom: 20px;
+}
+
+.newick-color-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.newick-control-menu {
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #faf5ff;
+    box-shadow: 0 8px 24px rgba(90, 34, 133, 0.08);
+}
+
+.newick-control-menu__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: baseline;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ece7f3;
+}
+
+.newick-control-menu__header strong {
+    color: #5a2285;
+    font-size: 16px;
+}
+
+.newick-control-menu__header span {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.newick-control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.newick-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 14px;
+    align-items: start;
+    margin-bottom: 15px;
+}
+
+.newick-viewer {
+    width: 100%;
+    height: 560px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.tree-stage {
+    width: 100%;
+    display: grid;
+    grid-template-rows: 1fr;
+    gap: 0;
+    position: relative;
+}
+
+.tree-stage-title {
+    min-height: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #2d3748;
+    position: absolute;
+    top: 8px;
+    left: 40px;
+    right: 8px;
+    z-index: 3;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+}
+
+.tree-stage-title:empty {
+    display: none;
+}
+
+.tree-stage-title:not(:empty) {
+    min-height: 0;
+}
+
+.tree-stage-plot {
+    display: block;
+    position: relative;
+}
+
+.tree-stage-ylabel {
+    display: block;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: center center;
+    z-index: 3;
+    pointer-events: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+}
+
+.tree-stage-xlabel {
+    min-height: 0;
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 3;
+    pointer-events: none;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+}
+
+.tree-stage-xlabel:empty,
+.tree-stage-ylabel:empty {
+    display: none;
+}
+
+.newick-control-menu--side {
+    margin: 0;
+}
+
+.newick-control-menu--side .newick-control-grid {
+    grid-template-columns: 1fr;
+}
+
+.newick-control-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #ece7f3;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.newick-button-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.newick-mini-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    background-color: white;
+    color: #5a2285;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.newick-mini-button:hover {
+    transform: scale(1.04);
+    background-color: white;
+    color: #5a2285;
+    border-color: #cbd5e0;
+}
+
+.newick-mini-button.is-active {
+    background: #5a2285;
+    color: #ffffff;
+    border-color: #5a2285;
+}
+
+.newick-mini-button.is-active:hover {
+    transform: scale(1.04);
+    background: #5a2285;
+    color: #ffffff;
+    border-color: #5a2285;
+}
+
+.newick-display-options {
+    display: grid;
+    gap: 10px;
+    font-size: 14px;
+    color: #2d3748;
+}
+
+.newick-control-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.treefile-download-row {
+    margin-top: 8px;
+}
+
+.newick-action-button {
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 0;
+}
+
+.newick-action-button--reset {
+    background-color: #0f766e;
+}
+
+.newick-action-button--download {
+    background-color: #4f46e5;
+}
+
+.save-image-button {
+    background: #5a2285;
+    border: none;
+    color: white;
+    padding: 10px 18px;
+    margin-top: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.save-image-button:hover {
+    transform: scale(1.05);
+    background: #431963;
+}
+
+#newick-viewer.orientation-diagonal-vertical canvas.phylocanvas {
+    transform: rotate(90deg);
+    transform-origin: center center;
+}
+
+.inference-viewer.orientation-diagonal-vertical canvas.phylocanvas {
+    transform: rotate(90deg);
+    transform-origin: center center;
+}
+
+.newick-color-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: #374151;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.newick-color-field input[type="color"] {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.axis-input-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.newick-card-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 0;
+    color: inherit;
+}
+
+.newick-card-toggle:hover {
+    transform: none;
+    background: transparent;
+}
+
+.newick-card-toggle-icon {
+    font-size: 16px;
+    font-weight: 700;
+    color: #5a2285;
+    line-height: 1;
+}
+
+.newick-control-card.is-collapsed .card-collapsible-content {
+    display: none;
+}
+
+.axis-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.axis-input-field input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e0;
+    font-size: 13px;
+    background: #fff;
+}
+
+.axis-input-field input[type="text"]:focus {
+    border-color: #4a90e2;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+@media (max-width: 1100px) {
+    .newick-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .newick-viewer {
+        order: 2;
+        height: 520px;
+    }
+
+    .newick-control-menu--side {
+        order: 1;
+    }
 }
 
 
