@@ -478,7 +478,7 @@ def run_mpboot():
             mpboot_newick=newick_str,
             mpboot_tree_file=mpboot_tree_file,
             mpboot_contree_file=mpboot_contree_file,
-            mpboot_log_file=mpboot_log_file
+            mpboot_log_file=mpboot_log_file,
             mpboot_report_file=mpboot_report_file
         )
 
