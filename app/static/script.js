@@ -290,7 +290,7 @@ window.syncNewickWorkspaceHeights = function() {
 
     var viewer = workspace.querySelector('#newick-viewer');
     var menu = workspace.querySelector('.newick-control-menu--side');
-    if (!viewer || !menu) {
+    if (!viewer || !menu || menu.offsetHeight === 0) {
         return;
     }
 
@@ -619,7 +619,7 @@ window.syncInferenceWorkspaceHeights = function(viewerKey) {
 
     var viewer = document.getElementById(viewerKey + '-viewer');
     var menu = workspace.querySelector('.newick-control-menu--side');
-    if (!viewer || !menu) {
+    if (!viewer || !menu || menu.offsetHeight === 0) {
         return;
     }
 
@@ -756,32 +756,44 @@ function initInferenceViewer(viewerKey) {
     }
 
     var viewerContainerId = viewerKey + '-viewer';
-    var viewerContainer = document.getElementById(viewerContainerId);
-    if (!viewerContainer) {
-        return;
-    }
+    function tryInitialize() {
+        var viewerContainer = document.getElementById(viewerContainerId);
+        if (!viewerContainer) return;
 
-    try {
-        var viewer = createPhylocanvasTree(viewerContainerId);
-        viewer.setTreeType('rectangular');
-        viewer.alignLabels = true;
-        viewer.textSize = 14;
-        viewer.lineWidth = 2;
-        viewer.load(rawTree);
-        inferenceViewers[viewerKey] = viewer;
-
-        updateInferenceStyles(viewerKey);
-        updateInferenceAnnotations(viewerKey);
-        syncInferenceWorkspaceHeights(viewerKey);
-        setInferenceInteraction(viewerKey, false);
-
-        var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
-        if (interactionToggle) {
-            interactionToggle.checked = false;
+        // wait until the container is visible
+        if (viewerContainer.offsetWidth === 0) {
+            setTimeout(tryInitialize, 100);
+            return;
         }
-    } catch (err) {
-        viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
+
+        try {
+            // prevent initializing twice
+            if (!inferenceViewers[viewerKey]) {
+                var viewer = createPhylocanvasTree(viewerContainerId);
+                viewer.setTreeType('rectangular');
+                viewer.alignLabels = true;
+                viewer.textSize = 14;
+                viewer.lineWidth = 2;
+                viewer.load(rawTree);
+                inferenceViewers[viewerKey] = viewer;
+
+                updateInferenceStyles(viewerKey);
+                updateInferenceAnnotations(viewerKey);
+                syncInferenceWorkspaceHeights(viewerKey);
+                setInferenceInteraction(viewerKey, false);
+
+                var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
+                if (interactionToggle) {
+                    interactionToggle.checked = false;
+                }
+            }
+        } catch (err) {
+            viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
+        }
     }
+    
+    // start the process
+    tryInitialize();
 }
 
 window.onload = function() {
@@ -807,41 +819,52 @@ window.onload = function() {
     }
 
     if (newickRawTreeString) {
-        try {
-            enableSplitNewickLabelColors();
-
-            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                newickViewer = Phylocanvas.default.createTree('newick-viewer');
-            } else if (typeof Phylocanvas.createTree === 'function') {
-                newickViewer = Phylocanvas.createTree('newick-viewer');
-            } else {
-                newickViewer = new Phylocanvas.Tree('newick-viewer');
-            }
-
-            newickViewer.setTreeType('rectangular');
-            newickViewer.alignLabels = true;
-            newickViewer.textSize = 14;
-            newickViewer.lineWidth = 2;
-
-            newickViewer.load(newickRawTreeString);
-            updateNewickStyles();
-            updateNewickAnnotations();
-
-            syncNewickWorkspaceHeights();
-            window.addEventListener('resize', syncNewickWorkspaceHeights);
-
-            // Default to scroll-friendly mode so wheel scroll moves the page.
-            setNewickInteraction(false);
-            var newickInteractionToggle = document.getElementById('newick-enable-interaction');
-            if (newickInteractionToggle) {
-                newickInteractionToggle.checked = false;
-            }
-        } catch (err) {
+        function initNewick() {
             var newickContainer = document.getElementById('newick-viewer');
-            if (newickContainer) {
+            if (!newickContainer) return;
+
+            // wait until the container is visible
+            if (newickContainer.offsetWidth === 0) {
+                setTimeout(initNewick, 100);
+                return;
+            }
+
+            try {
+                enableSplitNewickLabelColors();
+
+                if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+                    newickViewer = Phylocanvas.default.createTree('newick-viewer');
+                } else if (typeof Phylocanvas.createTree === 'function') {
+                    newickViewer = Phylocanvas.createTree('newick-viewer');
+                } else {
+                    newickViewer = new Phylocanvas.Tree('newick-viewer');
+                }
+
+                newickViewer.setTreeType('rectangular');
+                newickViewer.alignLabels = true;
+                newickViewer.textSize = 14;
+                newickViewer.lineWidth = 2;
+
+                newickViewer.load(newickRawTreeString);
+                updateNewickStyles();
+                updateNewickAnnotations();
+
+                syncNewickWorkspaceHeights();
+                window.addEventListener('resize', syncNewickWorkspaceHeights);
+
+                // Default to scroll-friendly mode
+                setNewickInteraction(false);
+                var newickInteractionToggle = document.getElementById('newick-enable-interaction');
+                if (newickInteractionToggle) {
+                    newickInteractionToggle.checked = false;
+                }
+            } catch (err) {
                 newickContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
             }
         }
+        
+        // start the process
+        initNewick();
     }
 
     ['bayes', 'iqtree', 'mpboot', 'distance'].forEach(function(viewerKey) {
