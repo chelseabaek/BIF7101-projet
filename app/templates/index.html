@@ -737,10 +737,25 @@
                 {% endif %}
 
                 {% if mpboot_tree_file %}
-                    <div class="treefile-download-row">
+                    <div class="treefile-download-row" style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <a href="{{ mpboot_tree_file }}" download>
-                            <button><i class="fa-solid fa-download"></i> Download .treefile (Newick)</button>
+                            <button title="The single best maximum parsimony tree"><i class="fa-solid fa-download"></i> Best Tree</button>
                         </a>
+                        {% if mpboot_contree_file %}
+                        <a href="{{ mpboot_contree_file }}" download>
+                            <button style="background-color: #5a2285;"><i class="fa-solid fa-diagram-project"></i> Consensus Tree (Bootstraps)</button>
+                        </a>
+                        {% endif %}
+                        {% if mpboot_log_file %}
+                        <a href="{{ mpboot_log_file }}" download>
+                            <button style="background-color: #475569;"><i class="fa-solid fa-file-lines"></i> Run Log</button>
+                        </a>
+                        {% endif %}
+                        {% if mpboot_report_file %}
+                        <a href="{{ mpboot_report_file }}" target="_blank">
+                            <button style="background-color: #0d9488;"><i class="fa-solid fa-file-contract"></i> View Summary Report</button>
+                        </a>
+                        {% endif %}
                     </div>
                 {% endif %}
                 <br><br>
