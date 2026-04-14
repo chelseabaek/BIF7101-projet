@@ -1,18 +1,32 @@
 function showTool(toolId, btn) {
-
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
     document.getElementById(toolId).classList.add('active');
 
     document.querySelectorAll('.topnav button, .dropdown-content button').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
-    // force the trees to resize the moment their tab opens
+    // LAZY LOAD: initialize and size the viewer only when its tab is opened
     setTimeout(function() {
-        if (toolId === 'newick_tree_viewer') syncNewickWorkspaceHeights();
-        if (toolId === 'bayesian-inference') syncInferenceWorkspaceHeights('bayes');
-        if (toolId === 'maximum-likelihood') syncInferenceWorkspaceHeights('iqtree');
-        if (toolId === 'parsimony') syncInferenceWorkspaceHeights('mpboot');
-        if (toolId === 'distance') syncInferenceWorkspaceHeights('distance');
+        if (toolId === 'newick_tree_viewer') { 
+            if (window.initNewickViewer) window.initNewickViewer(); 
+            if (window.syncNewickWorkspaceHeights) window.syncNewickWorkspaceHeights(); 
+        }
+        if (toolId === 'bayesian-inference') { 
+            if (window.initInferenceViewer) window.initInferenceViewer('bayes'); 
+            if (window.syncInferenceWorkspaceHeights) window.syncInferenceWorkspaceHeights('bayes'); 
+        }
+        if (toolId === 'maximum-likelihood') { 
+            if (window.initInferenceViewer) window.initInferenceViewer('iqtree'); 
+            if (window.syncInferenceWorkspaceHeights) window.syncInferenceWorkspaceHeights('iqtree'); 
+        }
+        if (toolId === 'parsimony') { 
+            if (window.initInferenceViewer) window.initInferenceViewer('mpboot'); 
+            if (window.syncInferenceWorkspaceHeights) window.syncInferenceWorkspaceHeights('mpboot'); 
+        }
+        if (toolId === 'distance') { 
+            if (window.initInferenceViewer) window.initInferenceViewer('distance'); 
+            if (window.syncInferenceWorkspaceHeights) window.syncInferenceWorkspaceHeights('distance'); 
+        }
     }, 50);
 }
 
@@ -751,6 +765,8 @@ window.downloadInferenceTreeImage = function(viewerKey, fileName) {
 };
 
 function initInferenceViewer(viewerKey) {
+    if (inferenceViewers[viewerKey]) return; // Stop if already initialized!
+
     var rawTree = inferenceRawTreeStrings[viewerKey];
     if (!rawTree) return;
 
@@ -759,7 +775,6 @@ function initInferenceViewer(viewerKey) {
     if (!viewerContainer) return;
 
     try {
-        // guarantee a height before drawing
         viewerContainer.style.height = '600px'; 
         
         var viewer = createPhylocanvasTree(viewerContainerId);
@@ -772,7 +787,6 @@ function initInferenceViewer(viewerKey) {
 
         updateInferenceStyles(viewerKey);
         updateInferenceAnnotations(viewerKey);
-        syncInferenceWorkspaceHeights(viewerKey);
         setInferenceInteraction(viewerKey, false);
 
         var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
@@ -781,6 +795,45 @@ function initInferenceViewer(viewerKey) {
         viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
     }
 }
+
+window.initNewickViewer = function() {
+    if (newickViewer || !newickRawTreeString) return; // Stop if already initialized!
+
+    try {
+        enableSplitNewickLabelColors();
+        
+        var newickContainer = document.getElementById('newick-viewer');
+        if (newickContainer) newickContainer.style.height = '600px';
+
+        if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+            newickViewer = Phylocanvas.default.createTree('newick-viewer');
+        } else if (typeof Phylocanvas.createTree === 'function') {
+            newickViewer = Phylocanvas.createTree('newick-viewer');
+        } else {
+            newickViewer = new Phylocanvas.Tree('newick-viewer');
+        }
+
+        newickViewer.setTreeType('rectangular');
+        newickViewer.alignLabels = true;
+        newickViewer.textSize = 14;
+        newickViewer.lineWidth = 2;
+
+        newickViewer.load(newickRawTreeString);
+        updateNewickStyles();
+        updateNewickAnnotations();
+
+        window.addEventListener('resize', syncNewickWorkspaceHeights);
+
+        setNewickInteraction(false);
+        var newickInteractionToggle = document.getElementById('newick-enable-interaction');
+        if (newickInteractionToggle) newickInteractionToggle.checked = false;
+    } catch (err) {
+        var errorContainer = document.getElementById('newick-viewer');
+        if (errorContainer) {
+            errorContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
+        }
+    }
+};
 
 window.onload = function() {
     if (PHYLODENDRON_CONFIG.activeTab) {
@@ -804,54 +857,15 @@ window.onload = function() {
         }, 150);
     }
 
-    if (newickRawTreeString) {
-        try {
-            enableSplitNewickLabelColors();
-            
-            // guarantee a height before drawing
-            var newickContainer = document.getElementById('newick-viewer');
-            if (newickContainer) newickContainer.style.height = '600px';
-
-            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                newickViewer = Phylocanvas.default.createTree('newick-viewer');
-            } else if (typeof Phylocanvas.createTree === 'function') {
-                newickViewer = Phylocanvas.createTree('newick-viewer');
-            } else {
-                newickViewer = new Phylocanvas.Tree('newick-viewer');
-            }
-
-            newickViewer.setTreeType('rectangular');
-            newickViewer.alignLabels = true;
-            newickViewer.textSize = 14;
-            newickViewer.lineWidth = 2;
-
-            newickViewer.load(newickRawTreeString);
-            updateNewickStyles();
-            updateNewickAnnotations();
-
-            syncNewickWorkspaceHeights();
-            window.addEventListener('resize', syncNewickWorkspaceHeights);
-
-            setNewickInteraction(false);
-            var newickInteractionToggle = document.getElementById('newick-enable-interaction');
-            if (newickInteractionToggle) newickInteractionToggle.checked = false;
-        } catch (err) {
-            var errorContainer = document.getElementById('newick-viewer');
-            if (errorContainer) {
-                errorContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
-            }
-        }
-    }
-
-    ['bayes', 'iqtree', 'mpboot', 'distance'].forEach(function(viewerKey) {
-        initInferenceViewer(viewerKey);
-    });
-
-    window.addEventListener('resize', function() {
-        ['bayes', 'iqtree', 'mpboot', 'distance'].forEach(function(viewerKey) {
-            syncInferenceWorkspaceHeights(viewerKey);
-        });
-    });
+    // Trigger the lazy loader for whatever tab is currently open when the page refreshes
+    setTimeout(function() {
+        var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
+        if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
+        if (active === 'bayesian-inference') { window.initInferenceViewer('bayes'); window.syncInferenceWorkspaceHeights('bayes'); }
+        if (active === 'maximum-likelihood') { window.initInferenceViewer('iqtree'); window.syncInferenceWorkspaceHeights('iqtree'); }
+        if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
+        if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
+    }, 100);
 
     // Require molecule type only for formats that need it.
     var conversionForm = document.getElementById("conversion-form");
