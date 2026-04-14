@@ -1,9 +1,10 @@
 FROM python:3.13
-# help
 
-RUN apt-get update && apt-get install -y wget tar \
-    && rm -rf /var/lib/apt/lists/*
+# 1. Force apt-get to NEVER ask for keyboard input (Fixes the infinite hang!)
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
+# 2. Install apt dependencies quietly
 RUN apt-get update && apt-get install -y --no-install-recommends \
     mafft \
     clustalo \
@@ -13,25 +14,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# RUN wget https://github.com \
-#     && chmod +x muscle-linux-x86.v5.3 \
-#     && ./muscle-linux-x86.v5.3
-
-# Download MUSCLE v5.3 (Linux x86_64)
-RUN wget https://github.com/rcedgar/muscle/releases/download/v5.3/muscle-linux-x86.v5.3 -O /usr/local/bin/muscle \
+# 3. Download MUSCLE (Quietly to prevent log crashes)
+RUN wget -q https://github.com/rcedgar/muscle/releases/download/v5.3/muscle-linux-x86.v5.3 -O /usr/local/bin/muscle \
     && chmod +x /usr/local/bin/muscle
 
-# Download IQ-TREE v3.1.1
-RUN wget https://github.com/iqtree/iqtree3/releases/download/v3.1.1/iqtree-3.1.1-Linux.tar.gz \
-    && tar -xvzf iqtree-3.1.1-Linux.tar.gz \
+# 4. Download IQ-TREE (Removed '-v' from tar to prevent log viewer crash)
+RUN wget -q https://github.com/iqtree/iqtree3/releases/download/v3.1.1/iqtree-3.1.1-Linux.tar.gz \
+    && tar -xzf iqtree-3.1.1-Linux.tar.gz \
     && mv iqtree-3.1.1-Linux/bin/* /usr/local/bin/ \
-    && chmod +x /usr/local/bin/iqtree3
+    && chmod +x /usr/local/bin/iqtree3 \
+    && rm iqtree-3.1.1-Linux.tar.gz
 
-# Download MPBoot v1.2 (Corrected path)
-RUN wget https://github.com/diepthihoang/mpboot/releases/download/v1.2/mpboot-avx-1.2-Linux.tar.gz \
-    && tar -xvzf mpboot-avx-1.2-Linux.tar.gz \
+# 5. Download MPBoot (Quiet download and extraction)
+RUN wget -q https://github.com/diepthihoang/mpboot/releases/download/v1.2/mpboot-avx-1.2-Linux.tar.gz \
+    && tar -xzf mpboot-avx-1.2-Linux.tar.gz \
     && mv mpboot-avx-1.2-Linux/mpboot-avx /usr/local/bin/mpboot \
-    && chmod +x /usr/local/bin/mpboot
+    && chmod +x /usr/local/bin/mpboot \
+    && rm mpboot-avx-1.2-Linux.tar.gz
 
 WORKDIR /app
 
