@@ -61,98 +61,104 @@ function showTool(toolId, btn) {
 // ==========================================
 // 3. TREE DRAWING WATCHERS
 // ==========================================
+
 window.initInferenceViewer = function(viewerKey) {
-    if (inferenceViewers[viewerKey]) return; // Stop if already initialized
+    if (inferenceViewers[viewerKey]) return;
+    
+    var config = window.PHYLODENDRON_CONFIG || {};
+    var treeString = null;
+    if (viewerKey === 'bayes') treeString = config.bayesNewick;
+    else if (viewerKey === 'iqtree') treeString = config.iqtreeNewick;
+    else if (viewerKey === 'mpboot') treeString = config.mpbootNewick;
+    else if (viewerKey === 'distance') treeString = config.distanceNewick;
+    
+    if (!treeString) return;
 
-    var rawTree = inferenceRawTreeStrings[viewerKey];
-    if (!rawTree) return;
+    var containerId = viewerKey + '-viewer';
+    var container = document.getElementById(containerId);
+    if (!container) return;
 
-    var viewerContainerId = viewerKey + '-viewer';
-    var viewerContainer = document.getElementById(viewerContainerId);
-    if (!viewerContainer) return;
+    console.log("PhyloDendron: Starting " + viewerKey + " Viewer Initialization");
 
-    // The Recursive Watcher: Wait until the browser paints the width!
-    function attemptDraw() {
-        if (viewerContainer.offsetWidth === 0) {
-            setTimeout(attemptDraw, 10);
-            return;
-        }
-
+    // Give the CSS Grid 150ms to completely settle its size before drawing!
+    setTimeout(function() {
         try {
-            viewerContainer.style.height = '600px'; 
+            container.style.height = '600px';
             
-            var viewer = createPhylocanvasTree(viewerContainerId);
+            var viewer = createPhylocanvasTree(containerId);
             viewer.setTreeType('rectangular');
             viewer.alignLabels = true;
-            viewer.textSize = 14;
-            viewer.lineWidth = 2;
-            viewer.load(rawTree);
+            
+            console.log("PhyloDendron: Drawing " + viewerKey + " Tree ->", treeString);
+            
+            viewer.load(treeString);
             inferenceViewers[viewerKey] = viewer;
 
-            updateInferenceStyles(viewerKey);
-            updateInferenceAnnotations(viewerKey);
-            syncInferenceWorkspaceHeights(viewerKey);
-            
-            if (typeof viewer.resizeToContainer === 'function') {
-                viewer.resizeToContainer();
-                viewer.draw();
+            if (typeof updateInferenceStyles === 'function') updateInferenceStyles(viewerKey);
+            if (typeof updateInferenceAnnotations === 'function') updateInferenceAnnotations(viewerKey);
+
+            // Force the tree to perfectly center itself in the settled box
+            if (typeof viewer.fitInPanel === 'function') {
+                viewer.fitInPanel();
             }
 
             setInferenceInteraction(viewerKey, false);
-            var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
-            if (interactionToggle) interactionToggle.checked = false;
+            console.log("PhyloDendron: " + viewerKey + " Viewer Successfully Rendered!");
         } catch (err) {
-            viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
+            console.error("PhyloDendron Fatal Error in " + viewerKey + ":", err);
+            container.innerHTML = "<div style='color:red; padding: 20px;'>Error: " + err.message + "</div>";
         }
-    }
-
-    attemptDraw();
+    }, 150); 
 };
 
 window.initNewickViewer = function() {
-    if (newickViewer || !newickRawTreeString) return; 
+    if (newickViewer) return; 
+    
+    var config = window.PHYLODENDRON_CONFIG || {};
+    var treeString = config.treeNewick;
+    if (!treeString) return;
 
-    var newickContainer = document.getElementById('newick-viewer');
-    if (!newickContainer) return;
+    var container = document.getElementById('newick-viewer');
+    if (!container) return;
 
-    // The Recursive Watcher: Wait until the browser paints the width!
-    function attemptNewickDraw() {
-        if (newickContainer.offsetWidth === 0) {
-            setTimeout(attemptNewickDraw, 10);
-            return;
-        }
+    console.log("PhyloDendron: Starting Newick Viewer Initialization");
 
+    // Give the CSS Grid 150ms to completely settle its size before drawing!
+    setTimeout(function() {
         try {
-            enableSplitNewickLabelColors();
-            newickContainer.style.height = '600px';
-
+            if (typeof enableSplitNewickLabelColors === 'function') enableSplitNewickLabelColors();
+            container.style.height = '600px';
+            
             newickViewer = createPhylocanvasTree('newick-viewer');
             newickViewer.setTreeType('rectangular');
             newickViewer.alignLabels = true;
             newickViewer.textSize = 14;
             newickViewer.lineWidth = 2;
+            
+            console.log("PhyloDendron: Drawing Newick Tree ->", treeString);
+            
+            newickViewer.load(treeString);
 
-            newickViewer.load(newickRawTreeString);
-            updateNewickStyles();
-            updateNewickAnnotations();
-            syncNewickWorkspaceHeights();
+            if (typeof updateNewickStyles === 'function') updateNewickStyles();
+            if (typeof updateNewickAnnotations === 'function') updateNewickAnnotations();
 
-            if (typeof newickViewer.resizeToContainer === 'function') {
-                newickViewer.resizeToContainer();
-                newickViewer.draw();
+            // Force the tree to perfectly center itself in the settled box
+            if (typeof newickViewer.fitInPanel === 'function') {
+                newickViewer.fitInPanel();
             }
 
             window.addEventListener('resize', syncNewickWorkspaceHeights);
-
             setNewickInteraction(false);
-            var newickInteractionToggle = document.getElementById('newick-enable-interaction');
-            if (newickInteractionToggle) newickInteractionToggle.checked = false;
+            
+            var interactionToggle = document.getElementById('newick-enable-interaction');
+            if (interactionToggle) interactionToggle.checked = false;
+            
+            console.log("PhyloDendron: Newick Viewer Successfully Rendered!");
         } catch (err) {
-            newickContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
+            console.error("PhyloDendron Fatal Error in Newick Viewer:", err);
+            container.innerHTML = "<div style='color:red; padding: 20px;'>Error: " + err.message + "</div>";
         }
-    }
-
-    attemptNewickDraw();
+    }, 150);
 };
 
 // ==========================================
