@@ -58,9 +58,13 @@ def tree_viewer():
                 handle = StringIO(newick_str)
                 tree = Phylo.read(handle, "newick")
                 # Normalize parsed Newick so the frontend viewer gets a clean tree string.
-                normalized_newick = StringIO()
-                Phylo.write(tree, normalized_newick, "newick")
-                tree_newick = normalized_newick.getvalue().strip()
+                # normalized_newick = StringIO()
+                # Phylo.write(tree, normalized_newick, "newick")
+                # tree_newick = normalized_newick.getvalue().strip()
+                
+                # 2. If it's valid, pass the ORIGINAL string back so Biopython doesn't inject 0.00000 branch lengths!
+                # If they uploaded a file, we pass the cleaned string.
+                tree_newick = newick_str
 
             except Exception as e:
                 tree_error = f"Failed to generate tree: {str(e)}"
