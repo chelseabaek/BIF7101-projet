@@ -62,9 +62,16 @@ def tree_viewer():
                 # Phylo.write(tree, normalized_newick, "newick")
                 # tree_newick = normalized_newick.getvalue().strip()
                 
-                # 2. If it's valid, pass the ORIGINAL string back so Biopython doesn't inject 0.00000 branch lengths!
-                # If they uploaded a file, we pass the cleaned string.
-                tree_newick = newick_str
+                # THE FIX: Check if tree is topology-only. 
+                # If so, inject 1.0 lengths so WebGL doesn't divide by zero!
+                total_len = sum(c.branch_length for c in tree.find_clades() if c.branch_length)
+                if total_len == 0:
+                    for clade in tree.find_clades():
+                        clade.branch_length = 1.0
+                        
+                safe_io = StringIO()
+                Phylo.write(tree, safe_io, "newick")
+                tree_newick = safe_io.getvalue().strip()
 
             except Exception as e:
                 tree_error = f"Failed to generate tree: {str(e)}"
@@ -399,8 +406,25 @@ def run_mpboot():
             raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
 
         # 3. Read Newick output for interactive rendering in the frontend viewer.
-        with open(treefile_path, "r") as f:
-            newick_str = f.read().strip()
+        # with open(treefile_path, "r") as f:
+        #    newick_str = f.read().strip()
+
+        try:
+            tree = Phylo.read(treefile_path, "newick")
+            
+            # THE FIX: MPBoot doesn't output lengths. Inject 1.0 so WebGL renders it!
+            total_len = sum(c.branch_length for c in tree.find_clades() if c.branch_length)
+            if total_len == 0:
+                for clade in tree.find_clades():
+                    clade.branch_length = 1.0
+                    
+            safe_io = StringIO()
+            Phylo.write(tree, safe_io, "newick")
+            newick_str = safe_io.getvalue().strip()
+        except Exception:
+            # Fallback if parsing fails
+            with open(treefile_path, "r") as f:
+                newick_str = f.read().strip()
 
         # 4. PREPARE THE TREEFILE FOR DOWNLOAD
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
