@@ -771,17 +771,41 @@ window.onload = function() {
         if(el) el.addEventListener('input', () => document.getElementById("mrbayes-preset").value = "custom");
     });
 
+    // MPBoot Presets
     window.applyMPBootPreset = function() {
         var preset = document.getElementById("mpboot-preset").value;
         var bb = document.getElementById("mpb-bb");
+        var spr = document.getElementById("mpb-spr");
+        var ratchet_iter = document.getElementById("mpb-ratchet-iter");
+        var ratchet_percent = document.getElementById("mpb-ratchet-percent");
+        var nni = document.getElementById("mpb-nni");
 
-        if (preset === "standard") bb.value = 1000; 
-        else if (preset === "fast") bb.value = 0; 
-        else if (preset === "thorough") bb.value = 2000; 
+        if (preset === "standard") {
+            bb.value = 1000; 
+            spr.value = 6;
+            ratchet_iter.value = 1;
+            ratchet_percent.value = 50;
+            if (nni) nni.checked = false;
+        } else if (preset === "fast") {
+            bb.value = 0; 
+            spr.value = 2; // smaller search radius
+            ratchet_iter.value = 1;
+            ratchet_percent.value = 20; // lower perturbation
+            if (nni) nni.checked = true; // use fast NNI climbing
+        } else if (preset === "thorough") {
+            bb.value = 2000; 
+            spr.value = 12; // deep SPR search
+            ratchet_iter.value = 5; // multiple ratchet iterations
+            ratchet_percent.value = 80;
+            if (nni) nni.checked = false;
+        }
     };
 
-    var mpbBb = document.getElementById("mpb-bb");
-    if(mpbBb) mpbBb.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
+    // MPBoot Custom Dropdown Trigger
+    ["mpb-bb", "mpb-spr", "mpb-ratchet-iter", "mpb-ratchet-percent", "mpb-nni"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if(el) el.addEventListener('input', () => document.getElementById("mpboot-preset").value = "custom");
+    });
 
     window.applyIQTreePreset = function() {
         var preset = document.getElementById("iqtree-preset").value;
