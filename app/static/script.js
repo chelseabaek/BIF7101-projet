@@ -586,6 +586,15 @@ function executeHighResExport(viewer, rawTree, prefix, filename, colors) {
 // 5. PAGE LOAD & FORM LOGIC
 // ==========================================
 window.onload = function() {
+    // THE MEMORY REFRESH: Grab the Python data NOW that the page has loaded!
+    var currentConfig = window.PHYLODENDRON_CONFIG || {};
+    newickRawTreeString = currentConfig.treeNewick || null;
+    inferenceRawTreeStrings = {
+        bayes: currentConfig.bayesNewick || null,
+        iqtree: currentConfig.iqtreeNewick || null,
+        mpboot: currentConfig.mpbootNewick || null,
+        distance: currentConfig.distanceNewick || null
+    };
     
     // Set Active Tab
     if (PHYLODENDRON_CONFIG.activeTab) {
