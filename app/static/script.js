@@ -1,12 +1,19 @@
 function showTool(toolId, btn) {
 
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
-
     document.getElementById(toolId).classList.add('active');
 
     document.querySelectorAll('.topnav button, .dropdown-content button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
 
-    btn.classList.add('active');
+    // force the trees to resize the moment their tab opens
+    setTimeout(function() {
+        if (toolId === 'newick_tree_viewer') syncNewickWorkspaceHeights();
+        if (toolId === 'bayesian-inference') syncInferenceWorkspaceHeights('bayes');
+        if (toolId === 'maximum-likelihood') syncInferenceWorkspaceHeights('iqtree');
+        if (toolId === 'parsimony') syncInferenceWorkspaceHeights('mpboot');
+        if (toolId === 'distance') syncInferenceWorkspaceHeights('distance');
+    }, 50);
 }
 
 var PHYLODENDRON_CONFIG = window.PHYLODENDRON_CONFIG || {};
@@ -284,23 +291,18 @@ window.setNewickInteraction = function(enabled) {
 
 window.syncNewickWorkspaceHeights = function() {
     var workspace = document.querySelector('#newick_tree_viewer .newick-workspace');
-    if (!workspace) {
-        return;
-    }
-
+    if (!workspace) return;
     var viewer = workspace.querySelector('#newick-viewer');
     var menu = workspace.querySelector('.newick-control-menu--side');
-    if (!viewer || !menu || menu.offsetHeight === 0) {
-        return;
-    }
+    if (!viewer || !menu) return;
 
-    viewer.style.height = menu.offsetHeight + 'px';
+    // use actual menu height, or fallback to 600px if hidden
+    var targetHeight = menu.offsetHeight > 0 ? menu.offsetHeight : 600;
+    viewer.style.height = targetHeight + 'px';
 
-    if (newickViewer) {
-        if (typeof newickViewer.resizeToContainer === 'function') {
-            newickViewer.resizeToContainer();
-        }
-        if (typeof newickViewer.draw === 'function') newickViewer.draw();
+    if (newickViewer && typeof newickViewer.resizeToContainer === 'function') {
+        newickViewer.resizeToContainer();
+        newickViewer.draw();
     }
 };
 
@@ -615,24 +617,19 @@ window.setInferenceInteraction = function(viewerKey, enabled) {
 
 window.syncInferenceWorkspaceHeights = function(viewerKey) {
     var workspace = document.getElementById(viewerKey + '-workspace');
-    if (!workspace) {
-        return;
-    }
-
+    if (!workspace) return;
     var viewer = document.getElementById(viewerKey + '-viewer');
     var menu = workspace.querySelector('.newick-control-menu--side');
-    if (!viewer || !menu || menu.offsetHeight === 0) {
-        return;
-    }
+    if (!viewer || !menu) return;
 
-    viewer.style.height = menu.offsetHeight + 'px';
+    // use actual menu height, or fallback to 600px if hidden
+    var targetHeight = menu.offsetHeight > 0 ? menu.offsetHeight : 600;
+    viewer.style.height = targetHeight + 'px';
 
     var treeViewer = inferenceViewers[viewerKey];
-    if (treeViewer) {
-        if (typeof treeViewer.resizeToContainer === 'function') {
-            treeViewer.resizeToContainer();
-        }
-        if (typeof treeViewer.draw === 'function') treeViewer.draw();
+    if (treeViewer && typeof treeViewer.resizeToContainer === 'function') {
+        treeViewer.resizeToContainer();
+        treeViewer.draw();
     }
 };
 
@@ -758,50 +755,31 @@ function initInferenceViewer(viewerKey) {
     if (!rawTree) return;
 
     var viewerContainerId = viewerKey + '-viewer';
+    var viewerContainer = document.getElementById(viewerContainerId);
+    if (!viewerContainer) return;
 
-    function tryInitialize() {
-        var viewerContainer = document.getElementById(viewerContainerId);
-        var workspace = document.getElementById(viewerKey + '-workspace');
-        if (!viewerContainer || !workspace) return;
+    try {
+        // guarantee a height before drawing
+        viewerContainer.style.height = '600px'; 
+        
+        var viewer = createPhylocanvasTree(viewerContainerId);
+        viewer.setTreeType('rectangular');
+        viewer.alignLabels = true;
+        viewer.textSize = 14;
+        viewer.lineWidth = 2;
+        viewer.load(rawTree);
+        inferenceViewers[viewerKey] = viewer;
 
-        // wait until the container is visible
-        if (viewerContainer.offsetWidth === 0) {
-            setTimeout(tryInitialize, 100);
-            return;
-        }
+        updateInferenceStyles(viewerKey);
+        updateInferenceAnnotations(viewerKey);
+        syncInferenceWorkspaceHeights(viewerKey);
+        setInferenceInteraction(viewerKey, false);
 
-        // set the height before creating the tree
-        var menu = workspace.querySelector('.newick-control-menu--side');
-        if (menu && menu.offsetHeight > 0) {
-            viewerContainer.style.height = menu.offsetHeight + 'px';
-        } else {
-            setTimeout(tryInitialize, 100);
-            return;
-        }
-
-        try {
-            if (!inferenceViewers[viewerKey]) {
-                var viewer = createPhylocanvasTree(viewerContainerId);
-                viewer.setTreeType('rectangular');
-                viewer.alignLabels = true;
-                viewer.textSize = 14;
-                viewer.lineWidth = 2;
-                viewer.load(rawTree);
-                inferenceViewers[viewerKey] = viewer;
-
-                updateInferenceStyles(viewerKey);
-                updateInferenceAnnotations(viewerKey);
-                setInferenceInteraction(viewerKey, false);
-
-                var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
-                if (interactionToggle) interactionToggle.checked = false;
-            }
-        } catch (err) {
-            viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
-        }
+        var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
+        if (interactionToggle) interactionToggle.checked = false;
+    } catch (err) {
+        viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
     }
-    
-    tryInitialize();
 }
 
 window.onload = function() {
@@ -827,57 +805,42 @@ window.onload = function() {
     }
 
     if (newickRawTreeString) {
-        function initNewick() {
+        try {
+            enableSplitNewickLabelColors();
+            
+            // guarantee a height before drawing
             var newickContainer = document.getElementById('newick-viewer');
-            var workspace = document.querySelector('#newick_tree_viewer .newick-workspace');
-            if (!newickContainer || !workspace) return;
+            if (newickContainer) newickContainer.style.height = '600px';
 
-            if (newickContainer.offsetWidth === 0) {
-                setTimeout(initNewick, 100);
-                return;
-            }
-
-            // set the height before creating the tree
-            var menu = workspace.querySelector('.newick-control-menu--side');
-            if (menu && menu.offsetHeight > 0) {
-                newickContainer.style.height = menu.offsetHeight + 'px';
+            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+                newickViewer = Phylocanvas.default.createTree('newick-viewer');
+            } else if (typeof Phylocanvas.createTree === 'function') {
+                newickViewer = Phylocanvas.createTree('newick-viewer');
             } else {
-                setTimeout(initNewick, 100);
-                return;
+                newickViewer = new Phylocanvas.Tree('newick-viewer');
             }
 
-            try {
-                enableSplitNewickLabelColors();
+            newickViewer.setTreeType('rectangular');
+            newickViewer.alignLabels = true;
+            newickViewer.textSize = 14;
+            newickViewer.lineWidth = 2;
 
-                if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-                    newickViewer = Phylocanvas.default.createTree('newick-viewer');
-                } else if (typeof Phylocanvas.createTree === 'function') {
-                    newickViewer = Phylocanvas.createTree('newick-viewer');
-                } else {
-                    newickViewer = new Phylocanvas.Tree('newick-viewer');
-                }
+            newickViewer.load(newickRawTreeString);
+            updateNewickStyles();
+            updateNewickAnnotations();
 
-                newickViewer.setTreeType('rectangular');
-                newickViewer.alignLabels = true;
-                newickViewer.textSize = 14;
-                newickViewer.lineWidth = 2;
+            syncNewickWorkspaceHeights();
+            window.addEventListener('resize', syncNewickWorkspaceHeights);
 
-                newickViewer.load(newickRawTreeString);
-                updateNewickStyles();
-                updateNewickAnnotations();
-
-                window.addEventListener('resize', syncNewickWorkspaceHeights);
-
-                setNewickInteraction(false);
-                var newickInteractionToggle = document.getElementById('newick-enable-interaction');
-                if (newickInteractionToggle) newickInteractionToggle.checked = false;
-                
-            } catch (err) {
-                newickContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
+            setNewickInteraction(false);
+            var newickInteractionToggle = document.getElementById('newick-enable-interaction');
+            if (newickInteractionToggle) newickInteractionToggle.checked = false;
+        } catch (err) {
+            var errorContainer = document.getElementById('newick-viewer');
+            if (errorContainer) {
+                errorContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
             }
         }
-        
-        initNewick();
     }
 
     ['bayes', 'iqtree', 'mpboot', 'distance'].forEach(function(viewerKey) {
