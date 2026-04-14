@@ -586,7 +586,7 @@ function executeHighResExport(viewer, rawTree, prefix, filename, colors) {
 // 5. PAGE LOAD & FORM LOGIC
 // ==========================================
 window.onload = function() {
-    // THE MEMORY REFRESH: Grab the Python data NOW that the page has loaded!
+    // 1. THE MEMORY REFRESH: Grab the Python data NOW that the page has loaded!
     var currentConfig = window.PHYLODENDRON_CONFIG || {};
     newickRawTreeString = currentConfig.treeNewick || null;
     inferenceRawTreeStrings = {
@@ -595,6 +595,16 @@ window.onload = function() {
         mpboot: currentConfig.mpbootNewick || null,
         distance: currentConfig.distanceNewick || null
     };
+
+    // 2. Trigger the lazy loader for whatever tab is currently open
+    setTimeout(function() {
+        var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
+        if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
+        if (active === 'bayesian-inference') { window.initInferenceViewer('bayes'); window.syncInferenceWorkspaceHeights('bayes'); }
+        if (active === 'maximum-likelihood') { window.initInferenceViewer('iqtree'); window.syncInferenceWorkspaceHeights('iqtree'); }
+        if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
+        if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
+    }, 100);
     
     // Set Active Tab
     if (PHYLODENDRON_CONFIG.activeTab) {
