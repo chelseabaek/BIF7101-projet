@@ -371,8 +371,11 @@ def run_mpboot():
 
     # 1. Capture the advanced parameters from the UI
     bootstraps = request.form.get("bootstraps", "1000")
-    #iterations = request.form.get("iterations", "1000")
-    #nstop = request.form.get("nstop", "100")
+    spr_rad = request.form.get("spr_rad", "6")
+    ratchet_iter = request.form.get("ratchet_iter", "1")
+    ratchet_percent = request.form.get("ratchet_percent", "50")
+    nni_pars = request.form.get("nni_pars")
+    mulhits = request.form.get("mulhits")
 
     if not file or file.filename == "":
         return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
@@ -393,7 +396,20 @@ def run_mpboot():
         if bootstraps != "0":
             cmd.extend(["-bb", bootstraps])
             
-        #cmd.extend(["-n", iterations, "-nstop", nstop])
+        if spr_rad and spr_rad != "6":
+            cmd.extend(["-spr_rad", spr_rad])
+            
+        if ratchet_iter and ratchet_iter != "1":
+            cmd.extend(["-ratchet_iter", ratchet_iter])
+            
+        if ratchet_percent and ratchet_percent != "50":
+            cmd.extend(["-ratchet_percent", ratchet_percent])
+            
+        if nni_pars:
+            cmd.append("-nni_pars")
+            
+        if mulhits:
+            cmd.append("-mulhits")
             
         process = subprocess.run(cmd, capture_output=True, text=True)
 
