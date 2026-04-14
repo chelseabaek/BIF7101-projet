@@ -764,8 +764,8 @@ window.downloadInferenceTreeImage = function(viewerKey, fileName) {
     }, 250);
 };
 
-function initInferenceViewer(viewerKey) {
-    if (inferenceViewers[viewerKey]) return; // Stop if already initialized!
+window.initInferenceViewer = function(viewerKey) {
+    if (inferenceViewers[viewerKey]) return; // Stop if already initialized
 
     var rawTree = inferenceRawTreeStrings[viewerKey];
     if (!rawTree) return;
@@ -774,68 +774,107 @@ function initInferenceViewer(viewerKey) {
     var viewerContainer = document.getElementById(viewerContainerId);
     if (!viewerContainer) return;
 
-    try {
-        viewerContainer.style.height = '600px'; 
-        
-        var viewer = createPhylocanvasTree(viewerContainerId);
-        viewer.setTreeType('rectangular');
-        viewer.alignLabels = true;
-        viewer.textSize = 14;
-        viewer.lineWidth = 2;
-        viewer.load(rawTree);
-        inferenceViewers[viewerKey] = viewer;
+    // The Recursive Watcher: Wait until the browser paints the width!
+    function attemptDraw() {
+        if (viewerContainer.offsetWidth === 0) {
+            setTimeout(attemptDraw, 10);
+            return;
+        }
 
-        updateInferenceStyles(viewerKey);
-        updateInferenceAnnotations(viewerKey);
-        setInferenceInteraction(viewerKey, false);
+        try {
+            viewerContainer.style.height = '600px'; 
+            
+            var viewer = createPhylocanvasTree(viewerContainerId);
+            viewer.setTreeType('rectangular');
+            viewer.alignLabels = true;
+            viewer.textSize = 14;
+            viewer.lineWidth = 2;
+            viewer.load(rawTree);
+            inferenceViewers[viewerKey] = viewer;
 
-        var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
-        if (interactionToggle) interactionToggle.checked = false;
-    } catch (err) {
-        viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
+            updateInferenceStyles(viewerKey);
+            updateInferenceAnnotations(viewerKey);
+            
+            if (typeof viewer.resizeToContainer === 'function') {
+                viewer.resizeToContainer();
+                viewer.draw();
+            }
+
+            setInferenceInteraction(viewerKey, false);
+
+            var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
+            if (interactionToggle) interactionToggle.checked = false;
+        } catch (err) {
+            viewerContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering tree: " + err.message + "</div>";
+        }
     }
-}
+
+    attemptDraw();
+};
 
 window.initNewickViewer = function() {
-    if (newickViewer || !newickRawTreeString) return; // Stop if already initialized!
+    if (newickViewer || !newickRawTreeString) return; 
 
-    try {
-        enableSplitNewickLabelColors();
-        
-        var newickContainer = document.getElementById('newick-viewer');
-        if (newickContainer) newickContainer.style.height = '600px';
+    var newickContainer = document.getElementById('newick-viewer');
+    if (!newickContainer) return;
 
-        if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-            newickViewer = Phylocanvas.default.createTree('newick-viewer');
-        } else if (typeof Phylocanvas.createTree === 'function') {
-            newickViewer = Phylocanvas.createTree('newick-viewer');
-        } else {
-            newickViewer = new Phylocanvas.Tree('newick-viewer');
+    // The Recursive Watcher: Wait until the browser paints the width!
+    function attemptNewickDraw() {
+        if (newickContainer.offsetWidth === 0) {
+            setTimeout(attemptNewickDraw, 10);
+            return;
         }
 
-        newickViewer.setTreeType('rectangular');
-        newickViewer.alignLabels = true;
-        newickViewer.textSize = 14;
-        newickViewer.lineWidth = 2;
+        try {
+            enableSplitNewickLabelColors();
+            newickContainer.style.height = '600px';
 
-        newickViewer.load(newickRawTreeString);
-        updateNewickStyles();
-        updateNewickAnnotations();
+            if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
+                newickViewer = Phylocanvas.default.createTree('newick-viewer');
+            } else if (typeof Phylocanvas.createTree === 'function') {
+                newickViewer = Phylocanvas.createTree('newick-viewer');
+            } else {
+                newickViewer = new Phylocanvas.Tree('newick-viewer');
+            }
 
-        window.addEventListener('resize', syncNewickWorkspaceHeights);
+            newickViewer.setTreeType('rectangular');
+            newickViewer.alignLabels = true;
+            newickViewer.textSize = 14;
+            newickViewer.lineWidth = 2;
 
-        setNewickInteraction(false);
-        var newickInteractionToggle = document.getElementById('newick-enable-interaction');
-        if (newickInteractionToggle) newickInteractionToggle.checked = false;
-    } catch (err) {
-        var errorContainer = document.getElementById('newick-viewer');
-        if (errorContainer) {
-            errorContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
+            newickViewer.load(newickRawTreeString);
+            updateNewickStyles();
+            updateNewickAnnotations();
+
+            if (typeof newickViewer.resizeToContainer === 'function') {
+                newickViewer.resizeToContainer();
+                newickViewer.draw();
+            }
+
+            window.addEventListener('resize', syncNewickWorkspaceHeights);
+
+            setNewickInteraction(false);
+            var newickInteractionToggle = document.getElementById('newick-enable-interaction');
+            if (newickInteractionToggle) newickInteractionToggle.checked = false;
+        } catch (err) {
+            newickContainer.innerHTML = "<div style='padding: 20px; color: red; font-weight: bold;'>Error rendering Newick tree: " + err.message + "</div>";
         }
     }
+
+    attemptNewickDraw();
 };
 
 window.onload = function() {
+    // 1. Trigger the lazy loader for whatever tab is currently open
+    setTimeout(function() {
+        var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
+        if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
+        if (active === 'bayesian-inference') { window.initInferenceViewer('bayes'); window.syncInferenceWorkspaceHeights('bayes'); }
+        if (active === 'maximum-likelihood') { window.initInferenceViewer('iqtree'); window.syncInferenceWorkspaceHeights('iqtree'); }
+        if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
+        if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
+    }, 100);
+    
     if (PHYLODENDRON_CONFIG.activeTab) {
         document.querySelectorAll('.tool').forEach(function(t) {
             t.classList.remove('active');
@@ -856,16 +895,6 @@ window.onload = function() {
             autoLink.remove();
         }, 150);
     }
-
-    // Trigger the lazy loader for whatever tab is currently open when the page refreshes
-    setTimeout(function() {
-        var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
-        if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
-        if (active === 'bayesian-inference') { window.initInferenceViewer('bayes'); window.syncInferenceWorkspaceHeights('bayes'); }
-        if (active === 'maximum-likelihood') { window.initInferenceViewer('iqtree'); window.syncInferenceWorkspaceHeights('iqtree'); }
-        if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
-        if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
-    }, 100);
 
     // Require molecule type only for formats that need it.
     var conversionForm = document.getElementById("conversion-form");
