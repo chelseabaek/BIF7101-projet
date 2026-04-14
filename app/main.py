@@ -366,10 +366,10 @@ def align_clustalo():
 # TOOL: Tree Inference -> Parsimony (MPBoot)
 @app.route("/run_mpboot", methods=["POST"])
 def run_mpboot():
-    file = request.files.get("fasta_file")
     active_tab = "parsimony"
-
-    # 1. Capture the advanced parameters from the UI
+    file = request.files.get("fasta_file")
+    
+    # 1. Capture Advanced Parameters
     bootstraps = request.form.get("bootstraps", "1000")
     spr_rad = request.form.get("spr_rad", "6")
     ratchet_iter = request.form.get("ratchet_iter", "1")
@@ -380,7 +380,7 @@ def run_mpboot():
     if not file or file.filename == "":
         return render_template("index.html", error="Please upload a FASTA file.", active_tab=active_tab)
 
-    mpboot_exe = os.path.join(os.getcwd(), "mpboot") if os.path.exists(os.path.join(os.getcwd(), "mpboot")) else "mpboot"
+    mpboot_exe = "mpboot" # Assumes it is in your PATH or local bin as per Dockerfile [cite: 1, 2]
 
     try:
         fasta_text = file.read()
@@ -390,81 +390,100 @@ def run_mpboot():
         
         output_prefix = temp_in_path + "_mpb"
 
-        # 2. Build command dynamically
+        # 2. Build the command dynamically
         cmd = [mpboot_exe, "-s", temp_in_path, "-pre", output_prefix]
-        
         if bootstraps != "0":
             cmd.extend(["-bb", bootstraps])
-            
         if spr_rad and spr_rad != "6":
             cmd.extend(["-spr_rad", spr_rad])
-            
         if ratchet_iter and ratchet_iter != "1":
             cmd.extend(["-ratchet_iter", ratchet_iter])
-            
         if ratchet_percent and ratchet_percent != "50":
             cmd.extend(["-ratchet_percent", ratchet_percent])
-            
         if nni_pars:
             cmd.append("-nni_pars")
-            
         if mulhits:
             cmd.append("-mulhits")
-            
-        process = subprocess.run(cmd, capture_output=True, text=True)
 
-        if process.returncode != 0:
-            raise Exception(f"MPBoot Error: {process.stderr}")
+        # Execute MPBoot
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
 
+        # 3. PREPARE THE VIEWER (Prioritizing the Consensus Tree)
+        # The .contree file contains the bootstrap values seen in your successful tests
+        newick_str = ""
+        contree_path = output_prefix + ".contree"
         treefile_path = output_prefix + ".treefile"
         
-        if not os.path.exists(treefile_path):
-            raise Exception("Treefile was not generated. Check if the FASTA alignment is valid.")
-
-        # 3. Read Newick output for interactive rendering in the frontend viewer.
-        # with open(treefile_path, "r") as f:
-        #    newick_str = f.read().strip()
-
-        try:
-            tree = Phylo.read(treefile_path, "newick")
+        source_path = contree_path if os.path.exists(contree_path) else treefile_path
+        
+        if os.path.exists(source_path):
+            tree = Phylo.read(source_path, "newick")
             
-            # THE FIX: MPBoot doesn't output lengths. Inject 1.0 so WebGL renders it!
+            # THE TOPOLOGY FIX: Inject 1.0 lengths if total length is 0
+            # This prevents the 'invisible tree' WebGL error
             total_len = sum(c.branch_length for c in tree.find_clades() if c.branch_length)
             if total_len == 0:
                 for clade in tree.find_clades():
                     clade.branch_length = 1.0
-                    
+            
             safe_io = StringIO()
             Phylo.write(tree, safe_io, "newick")
             newick_str = safe_io.getvalue().strip()
-        except Exception:
-            # Fallback if parsing fails
-            with open(treefile_path, "r") as f:
-                newick_str = f.read().strip()
 
-        # 4. PREPARE THE TREEFILE FOR DOWNLOAD
+        # 4. PREPARE DOWNLOADS
         safe_original_name = secure_filename(file.filename).rsplit('.', 1)[0]
-        download_tree_name = f"{safe_original_name}_mpboot_{uuid.uuid4().hex[:6]}.tree"
-        download_tree_path = os.path.join(UPLOAD_FOLDER, download_tree_name)
-        
-        shutil.move(treefile_path, download_tree_path)
-        mpboot_tree_file = url_for("uploaded_file", filename=download_tree_name)
+        run_id = uuid.uuid4().hex[:6]
 
-        # Cleanup intermediate files
-        for ext in [".log", ".iqtree", ".ckp.gz"]:
-            if os.path.exists(output_prefix + ext):
-                os.remove(output_prefix + ext)
-        os.remove(temp_in_path)
+        # MPBoot Report File (Summary)
+        mpboot_report_file = None
+        report_path = output_prefix + ".mpboot"
+        if os.path.exists(report_path):
+            report_name = f"{safe_original_name}_summary_{run_id}.txt"
+            shutil.move(report_path, os.path.join(UPLOAD_FOLDER, report_name))
+            mpboot_report_file = url_for("uploaded_file", filename=report_name)
+        
+        # Best Treefile (Maximum Parsimony)
+        mpboot_tree_file = None
+        if os.path.exists(treefile_path):
+            tree_name = f"{safe_original_name}_best_{run_id}.tree"
+            shutil.move(treefile_path, os.path.join(UPLOAD_FOLDER, tree_name))
+            mpboot_tree_file = url_for("uploaded_file", filename=tree_name)
+
+        # Consensus Tree (With Bootstraps)
+        mpboot_contree_file = None
+        if os.path.exists(contree_path):
+            con_name = f"{safe_original_name}_consensus_{run_id}.contree"
+            shutil.move(contree_path, os.path.join(UPLOAD_FOLDER, con_name))
+            mpboot_contree_file = url_for("uploaded_file", filename=con_name)
+
+        # Run Log
+        mpboot_log_file = None
+        logfile_path = output_prefix + ".log"
+        if os.path.exists(logfile_path):
+            log_name = f"{safe_original_name}_log_{run_id}.log"
+            shutil.move(logfile_path, os.path.join(UPLOAD_FOLDER, log_name))
+            mpboot_log_file = url_for("uploaded_file", filename=log_name)
+
+        # Cleanup
+        for ext in [".iqtree", ".ckp.gz", ".splits.nex", ".mpboot"]:
+            path = output_prefix + ext
+            if os.path.exists(path):
+                os.remove(path)
+        if os.path.exists(temp_in_path):
+            os.remove(temp_in_path)
 
         return render_template(
             "index.html", 
             active_tab=active_tab, 
             mpboot_newick=newick_str,
-            mpboot_tree_file=mpboot_tree_file
+            mpboot_tree_file=mpboot_tree_file,
+            mpboot_contree_file=mpboot_contree_file,
+            mpboot_log_file=mpboot_log_file
+            mpboot_report_file=mpboot_report_file
         )
 
     except Exception as e:
-        return render_template("index.html", error=str(e), active_tab=active_tab)
+        return render_template("index.html", error=f"MPBoot Error: {str(e)}", active_tab=active_tab)
 
 # TOOL: Tree inference -> Maximum Likelihood (IQ-TREE)
 @app.route("/run_iqtree", methods=["POST"])
