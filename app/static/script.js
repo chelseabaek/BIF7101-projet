@@ -1,30 +1,5 @@
 // ==========================================
-// 1. GLOBAL VARIABLES & UTILS
-// ==========================================
-var PHYLODENDRON_CONFIG = window.PHYLODENDRON_CONFIG || {};
-var newickViewer;
-var newickRawTreeString = PHYLODENDRON_CONFIG.treeNewick || null;
-
-var inferenceViewers = {};
-var inferenceRawTreeStrings = {
-    bayes: PHYLODENDRON_CONFIG.bayesNewick || null,
-    iqtree: PHYLODENDRON_CONFIG.iqtreeNewick || null,
-    mpboot: PHYLODENDRON_CONFIG.mpbootNewick || null,
-    distance: PHYLODENDRON_CONFIG.distanceNewick || null
-};
-
-function createPhylocanvasTree(containerId) {
-    if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') {
-        return Phylocanvas.default.createTree(containerId);
-    }
-    if (typeof Phylocanvas.createTree === 'function') {
-        return Phylocanvas.createTree(containerId);
-    }
-    return new Phylocanvas.Tree(containerId);
-}
-
-// ==========================================
-// 2. TAB SWITCHING (LAZY LOADING)
+// 1. TAB SWITCHING (LAZY LOADING)
 // ==========================================
 function showTool(toolId, btn) {
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
@@ -33,7 +8,6 @@ function showTool(toolId, btn) {
     document.querySelectorAll('.topnav button, .dropdown-content button').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
-    // LAZY LOAD: Initialize and size the viewer ONLY when its tab is opened!
     setTimeout(function() {
         if (toolId === 'newick_tree_viewer') { 
             if (window.initNewickViewer) window.initNewickViewer(); 
@@ -59,11 +33,100 @@ function showTool(toolId, btn) {
 }
 
 // ==========================================
-// 3. TREE DRAWING WATCHERS
+// 2. GLOBAL VARIABLES
 // ==========================================
+var PHYLODENDRON_CONFIG = window.PHYLODENDRON_CONFIG || {};
+var newickViewer;
+var newickRawTreeString = PHYLODENDRON_CONFIG.treeNewick || null;
+
+var inferenceViewers = {};
+var inferenceRawTreeStrings = {
+    bayes: PHYLODENDRON_CONFIG.bayesNewick || null,
+    iqtree: PHYLODENDRON_CONFIG.iqtreeNewick || null,
+    mpboot: PHYLODENDRON_CONFIG.mpbootNewick || null,
+    distance: PHYLODENDRON_CONFIG.distanceNewick || null
+};
+
+// Race Condition Locks
+window._isInitializingNewick = false;
+window._isInitializingInference = {};
+
+function createPhylocanvasTree(containerId) {
+    if (Phylocanvas.default && typeof Phylocanvas.default.createTree === 'function') return Phylocanvas.default.createTree(containerId);
+    if (typeof Phylocanvas.createTree === 'function') return Phylocanvas.createTree(containerId);
+    return new Phylocanvas.Tree(containerId);
+}
+
+// ==========================================
+// 3. TREE INITIALIZATION WATCHERS
+// ==========================================
+window.initNewickViewer = function() {
+    // SYNCHRONOUS LOCK: Prevent double-drawing race condition!
+    if (window._isInitializingNewick || newickViewer) return; 
+    window._isInitializingNewick = true;
+    
+    var config = window.PHYLODENDRON_CONFIG || {};
+    var treeString = config.treeNewick;
+    newickRawTreeString = treeString; // Update global for export
+    
+    if (!treeString) {
+        window._isInitializingNewick = false;
+        return;
+    }
+
+    var container = document.getElementById('newick-viewer');
+    if (!container) {
+        window._isInitializingNewick = false;
+        return;
+    }
+
+    setTimeout(function() {
+        try {
+            if (typeof enableSplitNewickLabelColors === 'function') enableSplitNewickLabelColors();
+            container.style.height = '600px';
+            
+            newickViewer = createPhylocanvasTree('newick-viewer');
+            newickViewer.setTreeType('rectangular');
+            
+            // Bypass Divide-by-Zero
+            newickViewer.alignLabels = false;
+            newickViewer.load(treeString);
+
+            Object.keys(newickViewer.branches).forEach(function(key) {
+                var branch = newickViewer.branches[key];
+                if (branch.branchLength === undefined || branch.branchLength === null || branch.branchLength === 0) {
+                    branch.branchLength = 1;
+                }
+            });
+
+            newickViewer.alignLabels = true;
+            newickViewer.textSize = 14;
+            newickViewer.lineWidth = 2;
+
+            if (typeof updateNewickStyles === 'function') updateNewickStyles();
+            if (typeof updateNewickAnnotations === 'function') updateNewickAnnotations();
+
+            if (typeof newickViewer.fitInPanel === 'function') newickViewer.fitInPanel();
+
+            window.addEventListener('resize', syncNewickWorkspaceHeights);
+            setNewickInteraction(false);
+            
+            var interactionToggle = document.getElementById('newick-enable-interaction');
+            if (interactionToggle) interactionToggle.checked = false;
+            
+        } catch (err) {
+            console.error("Newick Error:", err);
+            container.innerHTML = "<div style='color:red; padding: 20px;'>Error: " + err.message + "</div>";
+        } finally {
+            window._isInitializingNewick = false; // Release Lock
+        }
+    }, 150);
+};
 
 window.initInferenceViewer = function(viewerKey) {
-    if (inferenceViewers[viewerKey]) return;
+    // SYNCHRONOUS LOCK: Prevent double-drawing race condition!
+    if (window._isInitializingInference[viewerKey] || inferenceViewers[viewerKey]) return;
+    window._isInitializingInference[viewerKey] = true;
     
     var config = window.PHYLODENDRON_CONFIG || {};
     var treeString = null;
@@ -72,97 +135,64 @@ window.initInferenceViewer = function(viewerKey) {
     else if (viewerKey === 'mpboot') treeString = config.mpbootNewick;
     else if (viewerKey === 'distance') treeString = config.distanceNewick;
     
-    if (!treeString) return;
+    inferenceRawTreeStrings[viewerKey] = treeString; // Update global for export
+
+    if (!treeString) {
+        window._isInitializingInference[viewerKey] = false;
+        return;
+    }
 
     var containerId = viewerKey + '-viewer';
     var container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+        window._isInitializingInference[viewerKey] = false;
+        return;
+    }
 
-    console.log("PhyloDendron: Starting " + viewerKey + " Viewer Initialization");
-
-    // Give the CSS Grid 150ms to completely settle its size before drawing!
     setTimeout(function() {
         try {
             container.style.height = '600px';
-            
             var viewer = createPhylocanvasTree(containerId);
             viewer.setTreeType('rectangular');
-            viewer.alignLabels = true;
             
-            console.log("PhyloDendron: Drawing " + viewerKey + " Tree ->", treeString);
-            
+            // Bypass Divide-by-Zero
+            viewer.alignLabels = false;
             viewer.load(treeString);
+
+            Object.keys(viewer.branches).forEach(function(key) {
+                var branch = viewer.branches[key];
+                if (branch.branchLength === undefined || branch.branchLength === null || branch.branchLength === 0) {
+                    branch.branchLength = 1;
+                }
+            });
+
+            viewer.alignLabels = true;
+            viewer.textSize = 14;
+            viewer.lineWidth = 2;
+            
             inferenceViewers[viewerKey] = viewer;
 
             if (typeof updateInferenceStyles === 'function') updateInferenceStyles(viewerKey);
             if (typeof updateInferenceAnnotations === 'function') updateInferenceAnnotations(viewerKey);
 
-            // Force the tree to perfectly center itself in the settled box
-            if (typeof viewer.fitInPanel === 'function') {
-                viewer.fitInPanel();
-            }
-
+            if (typeof viewer.fitInPanel === 'function') viewer.fitInPanel();
             setInferenceInteraction(viewerKey, false);
-            console.log("PhyloDendron: " + viewerKey + " Viewer Successfully Rendered!");
+
+            var interactionToggle = document.getElementById(viewerKey + '-enable-interaction');
+            if (interactionToggle) interactionToggle.checked = false;
+
         } catch (err) {
-            console.error("PhyloDendron Fatal Error in " + viewerKey + ":", err);
+            console.error("Tree Error:", err);
             container.innerHTML = "<div style='color:red; padding: 20px;'>Error: " + err.message + "</div>";
+        } finally {
+            window._isInitializingInference[viewerKey] = false; // Release Lock
         }
     }, 150); 
 };
 
-window.initNewickViewer = function() {
-    if (newickViewer) return; 
-    
-    var config = window.PHYLODENDRON_CONFIG || {};
-    var treeString = config.treeNewick;
-    if (!treeString) return;
-
-    var container = document.getElementById('newick-viewer');
-    if (!container) return;
-
-    console.log("PhyloDendron: Starting Newick Viewer Initialization");
-
-    // Give the CSS Grid 150ms to completely settle its size before drawing!
-    setTimeout(function() {
-        try {
-            if (typeof enableSplitNewickLabelColors === 'function') enableSplitNewickLabelColors();
-            container.style.height = '600px';
-            
-            newickViewer = createPhylocanvasTree('newick-viewer');
-            newickViewer.setTreeType('rectangular');
-            newickViewer.alignLabels = true;
-            newickViewer.textSize = 14;
-            newickViewer.lineWidth = 2;
-            
-            console.log("PhyloDendron: Drawing Newick Tree ->", treeString);
-            
-            newickViewer.load(treeString);
-
-            if (typeof updateNewickStyles === 'function') updateNewickStyles();
-            if (typeof updateNewickAnnotations === 'function') updateNewickAnnotations();
-
-            // Force the tree to perfectly center itself in the settled box
-            if (typeof newickViewer.fitInPanel === 'function') {
-                newickViewer.fitInPanel();
-            }
-
-            window.addEventListener('resize', syncNewickWorkspaceHeights);
-            setNewickInteraction(false);
-            
-            var interactionToggle = document.getElementById('newick-enable-interaction');
-            if (interactionToggle) interactionToggle.checked = false;
-            
-            console.log("PhyloDendron: Newick Viewer Successfully Rendered!");
-        } catch (err) {
-            console.error("PhyloDendron Fatal Error in Newick Viewer:", err);
-            container.innerHTML = "<div style='color:red; padding: 20px;'>Error: " + err.message + "</div>";
-        }
-    }, 150);
-};
 
 // ==========================================
-// 4. UI STYLING & EXPORT UTILS
+// 4. UI STYLING & LAYOUT UTILS
 // ==========================================
 window.enableSplitNewickLabelColors = function() {
     if (!window.Phylocanvas || !Phylocanvas.Branch || !Phylocanvas.Branch.prototype) return;
@@ -240,9 +270,6 @@ function getTreeAnnotationValues(prefix) {
     };
 }
 
-window.updateNewickAnnotations = function() { setTreeAnnotations('newick'); };
-window.updateInferenceAnnotations = function(viewerKey) { setTreeAnnotations(viewerKey); };
-
 window.toggleControlCard = function(button) {
     var card = button ? button.closest('.newick-control-card') : null;
     if (!card) return;
@@ -265,6 +292,9 @@ window.toggleControlCard = function(button) {
         else syncNewickWorkspaceHeights();
     });
 };
+
+window.updateNewickAnnotations = function() { setTreeAnnotations('newick'); };
+window.updateInferenceAnnotations = function(viewerKey) { setTreeAnnotations(viewerKey); };
 
 window.updateNewickStyles = function() {
     if (!newickViewer) return;
@@ -498,6 +528,9 @@ window.resetInferenceView = function(viewerKey) {
     } catch (err) { console.error('Failed to reset:', err); }
 };
 
+// ==========================================
+// 5. IMAGE EXPORT (WITH BRANCH FIX)
+// ==========================================
 function buildAnnotatedExportCanvas(sourceCanvas, annotationPrefix) {
     var annotations = getTreeAnnotationValues(annotationPrefix);
     var hasTitle = annotations.title.length > 0;
@@ -565,15 +598,26 @@ function executeHighResExport(viewer, rawTree, prefix, filename, colors) {
 
     var exportViewer = createPhylocanvasTree(hiddenContainerId);
     exportViewer.setTreeType(viewer.treeType);
-    exportViewer.alignLabels = viewer.alignLabels;
     exportViewer.showBranchLengthLabels = viewer.showBranchLengthLabels;
     exportViewer.showInternalNodeLabels = viewer.showInternalNodeLabels;
     exportViewer.textSize = 28;
     exportViewer.lineWidth = 4;
 
-    applyStylesToViewer(exportViewer, colors);
+    // BYPASS DIVIDE BY ZERO FOR EXPORTS
+    exportViewer.alignLabels = false; 
     exportViewer.load(rawTree);
-    exportViewer.draw();
+    
+    if (exportViewer.branches) {
+        Object.keys(exportViewer.branches).forEach(function(key) {
+            var branch = exportViewer.branches[key];
+            if (branch.branchLength === undefined || branch.branchLength === null || branch.branchLength === 0) {
+                branch.branchLength = 1;
+            }
+        });
+    }
+
+    exportViewer.alignLabels = viewer.alignLabels; // Restore original setting
+    applyStylesToViewer(exportViewer, colors);
 
     setTimeout(function() {
         var canvas = hiddenContainer.querySelector('canvas');
@@ -589,37 +633,16 @@ function executeHighResExport(viewer, rawTree, prefix, filename, colors) {
 }
 
 // ==========================================
-// 5. PAGE LOAD & FORM LOGIC
+// 6. PAGE LOAD & FORM LOGIC
 // ==========================================
 window.onload = function() {
-    // 1. THE MEMORY REFRESH: Grab the Python data NOW that the page has loaded!
-    var currentConfig = window.PHYLODENDRON_CONFIG || {};
-    newickRawTreeString = currentConfig.treeNewick || null;
-    inferenceRawTreeStrings = {
-        bayes: currentConfig.bayesNewick || null,
-        iqtree: currentConfig.iqtreeNewick || null,
-        mpboot: currentConfig.mpbootNewick || null,
-        distance: currentConfig.distanceNewick || null
-    };
-
-    // 2. Trigger the lazy loader for whatever tab is currently open
-    setTimeout(function() {
-        var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
-        if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
-        if (active === 'bayesian-inference') { window.initInferenceViewer('bayes'); window.syncInferenceWorkspaceHeights('bayes'); }
-        if (active === 'maximum-likelihood') { window.initInferenceViewer('iqtree'); window.syncInferenceWorkspaceHeights('iqtree'); }
-        if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
-        if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
-    }, 100);
     
-    // Set Active Tab
     if (PHYLODENDRON_CONFIG.activeTab) {
         document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
         var activeTool = document.getElementById(PHYLODENDRON_CONFIG.activeTab);
         if (activeTool) activeTool.classList.add('active');
     }
 
-    // Auto-Download hook
     if (PHYLODENDRON_CONFIG.autoDownloadUrl) {
         setTimeout(function() {
             var autoLink = document.createElement('a');
@@ -631,7 +654,7 @@ window.onload = function() {
         }, 150);
     }
 
-    // TRIGGER THE LAZY LOADER FOR THE ACTIVE TAB
+    // Trigger the lazy loader safely
     setTimeout(function() {
         var active = PHYLODENDRON_CONFIG.activeTab || 'main-page';
         if (active === 'newick_tree_viewer') { window.initNewickViewer(); window.syncNewickWorkspaceHeights(); }
@@ -640,12 +663,6 @@ window.onload = function() {
         if (active === 'parsimony') { window.initInferenceViewer('mpboot'); window.syncInferenceWorkspaceHeights('mpboot'); }
         if (active === 'distance') { window.initInferenceViewer('distance'); window.syncInferenceWorkspaceHeights('distance'); }
     }, 100);
-
-    // Sync Heights on Browser Resize
-    window.addEventListener('resize', function() {
-        ['bayes', 'iqtree', 'mpboot', 'distance'].forEach(k => window.syncInferenceWorkspaceHeights(k));
-        window.syncNewickWorkspaceHeights();
-    });
 
     // Conversion Form Molecule Logic
     var conversionForm = document.getElementById("conversion-form");
