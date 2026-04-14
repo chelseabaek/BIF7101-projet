@@ -624,10 +624,34 @@
                         </select>
                     </div>
 
-                    <p class="instructions">Ultrafast Bootstraps</p>
+                    <p class="instructions">Parameters</p>
                     <div class="mrbayes-params-grid">
                         <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mpb-bb" title="-bb">Ultrafast Bootstraps</label>
                             <input class="mrbayes-param-input" type="number" id="mpb-bb" name="bootstraps" value="1000" min="0">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mpb-spr" title="-spr_rad">SPR Radius</label>
+                            <input class="mrbayes-param-input" type="number" id="mpb-spr" name="spr_rad" value="6" min="1">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mpb-ratchet-iter" title="-ratchet_iter">Ratchet Iterations</label>
+                            <input class="mrbayes-param-input" type="number" id="mpb-ratchet-iter" name="ratchet_iter" value="1" min="1">
+                        </div>
+                        <div class="mrbayes-param-group">
+                            <label class="mrbayes-param-label" for="mpb-ratchet-percent" title="-ratchet_percent">Ratchet %</label>
+                            <input class="mrbayes-param-input" type="number" id="mpb-ratchet-percent" name="ratchet_percent" value="50" min="1" max="100">
+                        </div>
+                    </div>
+                    
+                    <div class="mrbayes-params-grid" style="margin-top: 15px;">
+                        <div class="mrbayes-param-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="mpb-nni" name="nni_pars" value="yes">
+                            <label class="mrbayes-param-label" for="mpb-nni" title="-nni_pars" style="margin: 0; cursor: pointer;">Use NNI instead of SPR</label>
+                        </div>
+                        <div class="mrbayes-param-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="mpb-mulhits" name="mulhits" value="yes">
+                            <label class="mrbayes-param-label" for="mpb-mulhits" title="-mulhits" style="margin: 0; cursor: pointer;">Store Multiple Hits (-mulhits)</label>
                         </div>
                     </div>
                     <br>
