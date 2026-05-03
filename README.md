@@ -1,7 +1,7 @@
 
 # PhyloDendron
 
-Traditionally, phylogenetic analyses rely on command-line tools and scripting environments. [PhyloDendron.rocks](PhyloDendron.rocks) removes that barrier by providing an intuitive interface where users can upload data and visualize results directly in the browser.
+Traditionally, phylogenetic analyses rely on command-line tools and scripting environments. [PhyloDendron.rocks](https://phylodendron.rocks) removes that barrier by providing an intuitive interface where users can upload data and visualize results directly in the browser.
 
 A complete description can be found in the document Report/Final/Rapport_Baek_Slavova.pdf. 
 
