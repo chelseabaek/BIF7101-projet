@@ -9,7 +9,11 @@ A complete description can be found in the document Report/Final/Rapport_Baek_Sl
  
 ## Authors
 
-- [@chelseabaek](https://www.github.com/chelsebaek) & [@mariyanas](https://www.github.com/mariyanas)
+[@chelseabaek](https://www.github.com/chelsebaek) & [@mariyanas](https://www.github.com/mariyanas)
+
+## Deployment
+
+[PhyloDendron.rocks](https://phylodendron.rocks) is currently hosted on DigitalOcean.
 
 
 ## Run Locally
