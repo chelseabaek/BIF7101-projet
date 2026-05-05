@@ -14,15 +14,32 @@ output:
     toc_depth: 2
     number_sections: true
     fig_caption: true
+    latex_engine: xelatex
+    keep_tex: true
+header-includes:
+   - \renewcommand\labelitemii{$\circ$} 
+   - \usepackage{float} 
 bibliography: references.bib 
 csl: vancouver.csl
 link-citations: true
 toc-title: "Table des matières"
+mainfont: "Helvetica Neue"
 ---
 
 # Résumé
 
 # Introduction et problématique 
+
+## Le contexte scientifique et la motivation du projet 
+
+
+## La problématique ou la question de recherche 
+
+
+## Les objectifs
+Offrir aux utilisateurs des outils qui ne sont pas disponibles sur Trex.
+Offrir aux utilisateurs un site web intuitif pour effectuer des analyses phylogénétiques. 
+
 
 # Méthodes et matériel 
 
@@ -30,23 +47,102 @@ toc-title: "Table des matières"
 
 ## Les algorithmes, outils et logiciels 
 
-### Phylogénétique
-
 ### Informatique
 
-- [Flask](https://flask.palletsprojects.com/en/stable/)
-- [name.com](https://www.name.com)
-- [DigitalOcean](https://www.digitalocean.com)
+Nous avons utilisé [**Git**](https://git-scm.com) pour le contrôle de version et le développement collaboratif. Notre *repository* est hébergé sur [GitHub](https://github.com/chelseabaek/BIF7101-projet). 
+
+**Développement backend :**
+
+- **Langage** : Nous avons choisi de développer le site Web en Python parce que nous voulions utiliser la bibliothèque [BioPython](https://biopython.org) [@biopython]. BioPython est un ensemble d'outils de biologie computationnelle et de bioinformatique.
+
+- **Framework** : Pour le *framework*, nous avons utilisé **[Flask](https://flask.palletsprojects.com/en/stable/)** pour implémenter la gestion des requêtes et des réponses HTTP.
+
+
+**Développement frontend :**
+
+Pour développer l'interface utilisateur, nous avons utilisé les trois langages de base:
+
+- **HTML** : Fournit la base structurelle de l'interface web.
+
+- **CSS** : Définit le style visuel et la présentation de l'application.
+
+- **JavaScript** : Permet de rendre le site dynamique et interactif.
+
+De plus, nous avons essayé de respecter les normes d'accessibilité web afin de garantir que la plateforme soit accessible au plus grand nombre. Nous avons utilisé le [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker) pour vérifier que les rapports de contraste *text-to-background* et la taille de la police respectent ou dépassent les normes de WebAIM.
+
+**Déploiement : **
+
+- **Configuration de l'environnement :**
+  - **Docker :**  Un Dockerfile garantit que toutes les dépendances requises sont installées et configurées de la même manière à chaque exécution, ce qui facilite le déploiement du projet et assure que l’application fonctionne de manière fiable dans n’importe quel environnement, que ce soit en local ou sur un serveur. Notre Dockerfile construit un *container* basé sur Python 3.13, installe et configure les dépendances (MAFFT, Clustal Omega, MrBayes, MUSCLE, IQ-TREE et MPBoot, ainsi que le fichier requirements.txt), puis lance l’application à l’aide de Gunicorn sur le port 8080.
+
+  - **requirements.txt :** contient tous les packages Python nécessaires au projet (`flask`, `gunicorn`, `biopython`, `matplotlib`).
+
+- **Hosting** : Nous hébergeons notre site pour le rendre accessible aux utilisateurs d’Internet. Notre site Web est hébergé sur [DigitalOcean](https://www.digitalocean.com). Nous avons enregistré notre nom de domaine via [Name.com](https://www.name.com) et choisi DigitalOcean pour l'hébergement, en profitant du [GitHub Student Developer Pack](https://education.github.com/pack), qui nous offrait un nom de domaine gratuit pendant un an et 200 $ de crédits DigitalOcean.
+
+
+### Phylogénétique
+Nous nous sommes concentrés sur la mise à jour des outils actuellement proposés par TREX en intégrant des alternatives plus récentes et en ajoutant une méthode bayésienne pour l'inférence d'arbres.
+
+
+**Inférence d'arbre :** 
+
+Après chaque méthode d'inférence d'arbre, une visualisation de l'arbre est automatiquement générée pour l'utilisateur. Afin d'offrir une expérience plus interactive, nous avons exploré des outils autres que `Phylo.draw()` et `Phylo.draw_ascii()` de BioPython. Pour ce faire, nous avons implémenté [Phylocanvas.gl](https://www.phylocanvas.gl) [@phylocanvas], car il propose des fonctionnalités interactives permettant aux utilisateurs d'explorer et de manipuler les arbres phylogénétiques. En plus d'offrir des options similaires à T-REX, notre implémentation permet également d'ajouter des légendes de figures, de appliquer une représentation circulaire de l’arbre et de télécharger celui-ci (Figure \@ref(fig:options)).
+
+```{r options, echo=FALSE, out.width="60%", fig.align="center", fig.cap="Options PhyloDendron.rocks (gauche) ; Options T-REX (droite)", fig.pos="H"}
+knitr::include_graphics("images/options.png")
+```
+
+
+
+- **Inférence bayésienne :**  Pour l'inférence bayésienne, plutôt que de rechercher un seul arbre optimal, on explore la distribution postérieure des arbres, longueurs de branches et paramètres du modèle. Nous avons utilisé le logiciel MrBayes [@mrbayes] pour implementer l'inférence bayésienne en phylogénétique. MrBayes utilise des méthodes de MCMC (Markov Chain Monte Carlo) pour approximer cette distribution a posteriori et estimer les phylogénies et les temps de divergence des espèces [@bayesianInference]. Pour construire un arbre de consensus par inférence bayésienne sur notre site Web, l'utilisateur saisit un fichier de séquences alignées (au format FASTA ou NEXUS) ainsi que les paramètres (number of generations, sample frequency, print frequency et number of burn-ins). Si l'utilisateur entre un fichier FASTA, il est automatiquement converti au format NEXUS. Les paramètres par défaut sont également disponibles (Figure \@ref(fig:bayes)). Une fois l'analyse terminée, les arbres de consensus obtenus et les résultats sont compilés dans un fichier ZIP téléchargeable.
+
+```{r bayes, echo=FALSE, out.width="75%", fig.align="center", fig.cap="Paramètres d'inférence bayésienne",fig.pos="H"}
+knitr::include_graphics("images/pd_bayesian_inf.png")
+```
+
+- **Parcimonie : ** 
+
+- **Maximum de vraisemblance :** 
+
+- **Méthodes de distance :** Pour la construction d'arbres par méthodes de distances, l'utilisateur saisit deux entrées : un fichier FASTA aligné et la méthode de distance, NJ ou UPGMA. Contrairement au plateforme T-REX, où le modèle de substitution est sélectionné manuellement par l'utilisateur, nous avons utilisé [IQ-TREE](https://iqtree.github.io) [@iqtree] afin de sélectionner le modèle de substitution le plus approprié en nous basant sur le critère BIC (Bayesian Information Criterion). Le mot-clé MFP (ModelFinder Plus) indique à IQ-TREE d'effectuer l'analyse en utilisant le modèle qui minimise le score BIC [[@iqtreeInfo].
+  ```{python iqtree, eval=FALSE}
+  cmd = ["iqtree3", "-s", filepath, "-m", "MFP", "-nt", "AUTO", 
+          "-pre", output_prefix, "-redo"]
+  ```
+  
+  La matrice de distances est générée par IQ-TREE lors de cette sélection de modèle, puis nous la convertissons au format compatible avec Biopython. Enfin, la méthode de distance choisie par l'utilisateur est appliquée à cette matrice pour construire l'arbre phylogénétique, toutes deux implémentées via [Biopython](https://biopython.org) [@biopython].
+
+
+**Alignement : **
+
+- **MUSCLE :** 
+
+- **MAFFT :** 
+
+- **Clustal Omega :** 
+
+
+**Autre Outils :**
+
+- **Viewer d'arbre Newick : **
+
+- **Conversion : **
+
 
 ## Le protocole 
 
 # Résultats et discussion 
+
 
 ## Les résultats 
 
 ## Analyse et interprétation des résultats
 
 ## Les forces et les limites 
+
+Proposez des perspectives ou des améliorations possibles 
+ - Mr Bayes vs Beast
+ - have bayesianinference run in the background
 
 ## Comparison
 
