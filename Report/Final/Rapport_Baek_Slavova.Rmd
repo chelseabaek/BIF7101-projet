@@ -19,31 +19,29 @@ output:
 header-includes:
    - \renewcommand\labelitemii{$\circ$} 
    - \usepackage{float} 
+   - \usepackage{booktabs}
+   - \usepackage{xcolor}
 bibliography: references.bib 
 csl: vancouver.csl
 link-citations: true
 toc-title: "Table des matières"
-mainfont: "Helvetica Neue"
 ---
 
 # Résumé
 
+Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé **Phylodendron.rocks**. Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Le but ultime de ce projet est de faciliter l'analyse phylogénétique pour les utilisateurs, leur offrant un grand éventail de possibilités pour répondre à leurs besoins spécifiques. Ultimement, ce projet nous a permis de nous familiariser avec plusieurs langages de programmation, et d'appliquer les connaissances acquises durant le cours BIF-7101.
+
 # Introduction et problématique 
 
-## Le contexte scientifique et la motivation du projet 
+L'inférence phylogénétique permet d'étudier les relations évolutives entre les organismes vivants en construisant des arbres à partir de données observées, telles que des séquences d'ADN ou de protéines. Il existe diverses méthodes pour l'inférence, telles que des méthodes de distance, de parcimonie et probabilistes. Un obstacle à ce domaine d'étude est le fait de devoir télécharger de nombreux algorithmes avant l'étape de l'analyse. Cela peut grandement ralentir une étude lorsque nous ne sommes pas familier avec l'informatique. C'est pourquoi il existe des sites webs d'inférence d'arbres phylogénétiques. Cependant, nous avons constaté que la plateforme T-rex, créé par Alix Boc, Alpha Boubacar Diallo et Vladimir Makarenkov, qui détermine l'inférence, la validation et la visualisation d'arbres et de réseaux phylogénétiques [@trex], n’est plus maintenue. En effet, plusieurs méthodes utilisées ont connu des mises à jour qui n’ont pas été reflétées sur le serveur web.  
 
+## Les objectifs 
 
-## La problématique ou la question de recherche 
-
-
-## Les objectifs
-Offrir aux utilisateurs des outils qui ne sont pas disponibles sur Trex.
-Offrir aux utilisateurs un site web intuitif pour effectuer des analyses phylogénétiques. 
-
+L'objectif principal de ce projet est d'offir aux utilisateurs des outils qui sont à jour et qui ne sont pas disponibles sur T-rex afin qu'ils puissent recevoir de meilleurs résultats, et ce, souvent plus rapidement. Certes, les anciennes versions peuvent encore fonctionner, mais n'offre pas le meilleur potentiel aux données. 
+  
+Un second objectif est de créer un site web intuitif et facile d'utilisation. Nous voulons que les utilisateurs puissent télécharger les fichiers produits par les outils d'inférence au besoin et de pouvoir visualiser leurs arbres de diverses manières en leur permettant de changer les paramètres désirés.
 
 # Méthodes et matériel 
-
-## Les données utilisées 
 
 ## Les algorithmes, outils et logiciels 
 
@@ -100,9 +98,22 @@ knitr::include_graphics("images/options.png")
 knitr::include_graphics("images/pd_bayesian_inf.png")
 ```
 
-- **Parcimonie : ** 
+- **Parcimonie : ** Pour l'inférence par méthode de parcimonie, nous avons décidé d'implémenter l'outil MPBoot [@mpboot] qui n'est pas disponible sur la plateforme T-rex. Ce programme permet également de faire une approximation rapide des bootstraps de parcimonie maximale (UFBoot, inspiré des méthodes similaires employées pour celles de maximum de vraisemblance). Il n'est donc pas nécessaire d'utiliser un outil supplémentaire (ex: SeqBoot) si le calcul des bootstraps est désiré. Pour l'algorithme de recherche, il utilise le réarrangement SPR et implémente le Parsimony ratchet. Cet algorithme blabla. Sur notre plateforme, l'utilisateur télécharge ses séquences alignées en format FASTA et choisit les valeurs des paramètres suivant:  
+  - Ultrafast Bootstraps:
+  - SPR Radius: Indique le rayon de SPR. Un rayon plus grand permet à l'algorithme de déplacer des branches plus loin dans l'arbre, ce qui augmente la possibilité de trouver un optimum global (mais augmente le temps de computation).
+  - Ratchet Iterations:
+  - Ratchet %:
+  - Use NNI instead of SPR: Utile lorsqu'une analyse plus rapide est désirée, mais produit un résultat moins stricte et minutueux.
+  Les paramètres par défaut sont aussi disponibles afin de faciliter la tâche aux utilisateurs (Figure \@ref(fig:mpboot1)). À la fin de l'analyse, plusieurs fichiers informatifs sont disponibles pour le téléchargement (Figure \@ref(fig:mpboot2)).
+  
+```{r mpboot1, echo=FALSE, out.width="75%", fig.align="center", fig.cap="Paramètres d'inférence par MPBoot",fig.pos="H"}
+knitr::include_graphics("images/mpboot1.png")
+```
+```{r mpboot2, echo=FALSE, out.width="75%", fig.align="center", fig.cap="Fichiers téléchargeables disponibles",fig.pos="H"}
+knitr::include_graphics("images/mpboot2.png")
+```
 
-- **Maximum de vraisemblance :** 
+- **Maximum de vraisemblance :** Quant à l'inférence par maximum de vraisemblance, l'outil IQTREE [@iqtree] à été utilisé (non disponible sur T-rex).
 
 - **Méthodes de distance :** Pour la construction d'arbres par méthodes de distances, l'utilisateur saisit deux entrées : un fichier FASTA aligné et la méthode de distance, NJ ou UPGMA. Contrairement au plateforme T-REX, où le modèle de substitution est sélectionné manuellement par l'utilisateur, nous avons utilisé [IQ-TREE](https://iqtree.github.io) [@iqtree] afin de sélectionner le modèle de substitution le plus approprié en nous basant sur le critère BIC (Bayesian Information Criterion). Le mot-clé MFP (ModelFinder Plus) indique à IQ-TREE d'effectuer l'analyse en utilisant le modèle qui minimise le score BIC [[@iqtreeInfo].
   ```{python iqtree, eval=FALSE}
@@ -129,10 +140,90 @@ knitr::include_graphics("images/pd_bayesian_inf.png")
 - **Conversion : **
 
 
-## Le protocole 
+## Le protocole  
+Cette section porte sur des tests effectués afin de valider l'implémentation des nouveaux outils (ClustalO, MPBoot, IQTREE et MrBayes) en les comparant avec un outil semblable disponible sur T-rex.  
+
+### Jeux de données  
+Afin de tester les outils, plusieurs séquences de référence ont été téléchargées de la base BaliBase.
+
+### Tester ClustalO
+
+Pourquoi implémenter ClustalO au lieu de ClustalW?  
+ClustalO utilise des HMM pour l'alignement profil-profil ->  permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées.   
+ClustalW utilise une stratégie d'alignement progressif avec pondération des séquences.   
+Test case: Benchmark references BaliBase3 -> run clustalO et clustalW sur les references de BaliBase3 et appliquer iqtree3 aux résultats pour démontrer que clustalO produit un meilleur alignement de séquences.   
+
+```{r echo=FALSE}
+values <- matrix(c(133, 24, 324, 293, 703, 1187), nrow = 2)
+barplot(values, beside = TRUE, col = c("purple", "yellow"), names.arg = c(261,1044,2088), legend.text = c("ClustalO", "ClustalW"), xlab = "Nombre de séquences", ylab = 'Temps (s)') 
+
+```
+
+
+```{r include=FALSE}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+```
+
+  
+```{r echo=FALSE, warning=FALSE}
+data <- read.csv('co_vs_cw.csv')
+
+data %>%
+  kbl(booktabs = TRUE, 
+      format = "latex", 
+      caption = "Log-Likelihood Comparison: ClustalO vs ClustalW",
+      col.names = c("DataSet", "LogL ClustalO", "LogL ClustalW", "Difference $\\Delta \\ln L$"),
+      escape = FALSE) %>%
+  kable_styling(latex_options = c("HOLD_position")) %>%
+  column_spec(4, 
+              background = ifelse(data$Difference.DlnL < 0, "#FFCCCC", "#CCFFCC"),
+              color = "black")
+```
+
+  
+### Tester MPBoot
+
+Ici, nous reprenons les alignements de séquences générés par ClustalO. Nous appliquons ensuite MPBoot et PROTPARS à chacun de ces alignements.  
+    
+    
+```{r echo=FALSE}
+data2 <- read.csv('mpboot_vs_protpars.csv')
+
+data2 %>%
+  kbl(booktabs = TRUE, 
+      format = "latex", 
+      caption = "Parsimony Score Comparison: MPBoot vs PROTPARS",
+      col.names = c("DataSet", "MPBoot score", "PROTPARS score", "Difference $\\Delta$ Score"),
+      escape = FALSE) %>% 
+  kable_styling(latex_options = c("HOLD_position")) %>%
+  column_spec(4, 
+              background = ifelse(data2$Difference.Parsimony.score < 0, "#FFCCCC", "#CCFFCC"),
+              color = "black")
+```
+      
+      
+### Tester IQTREE
+      
+      
+```{r echo=FALSE}
+data3 <- read.csv('iqtree_vs_raxml.csv')
+
+data3 %>%
+  kbl(booktabs = TRUE, 
+      format = "latex", 
+      caption = "LogL Score and Time Comparison: IQTREE vs RAxML",
+      col.names = c("DataSet", "IQTREE LogL", "RAxML LogL", 'IQTREE Time', 'RAxML Time', "Difference $\\Delta$ Time"),
+      escape = FALSE) %>% 
+  kable_styling(latex_options = c("HOLD_position")) %>%
+  column_spec(6, 
+              background = ifelse(data3$Time.Difference < 0, "#FFCCCC", "#CCFFCC"),
+              color = "black")
+```
+  
 
 # Résultats et discussion 
-
 
 ## Les résultats 
 
