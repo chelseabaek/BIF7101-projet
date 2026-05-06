@@ -265,6 +265,80 @@ Proposez des perspectives ou des améliorations possibles
 
 # Conclusion 
 
+L’objectif principal de ce projet était de fournir aux utilisateurs une plateforme Web moderne pour l’inférence phylogénétique, intégrant des outils récents non disponibles sur la plateforme T-REX, tout en améliorant la facilité d’utilisation.
+
+L’utilisabilité est améliorée grâce à l’intégration de paramètres prédéfinis suggérés. De plus, les arbres inférés sont automatiquement générés et affichés à la fin de chaque analyse, donc aucun outil supplémentaire n'est nécessaire pour visualiser l'arbre.
+
+PhyloDendron constitue une extension de T-REX dans plusieurs domaines (résumé dans le table \@ref(tab:summary)). Pour l'inférence d'arbres phylogénétiques, l'intégration d'IQ-TREE, MPBoot et MrBayes permet aux utilisateurs d'accéder à ces méthodes (non disponibles sur T-REX). Pour l'alignement de séquences, des outils tels que MUSCLE, MAFFT et ClustalO offrent des alignements plus rapides et plus précis que les versions précédentes, notamment pour les grands ensembles de données. Enfin, nous permettons aux utilisateurs de télécharger des fichiers Newick pour la visualisation et de convertir des fichiers.
+
+working on Proposez des perspectives ou des améliorations possibles 
+
+
+\renewcommand{\arraystretch}{1.75}
+
+```{r summary, echo=FALSE, warning=FALSE, fig.cap="Summary", fig.pos="H"}
+
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
+data <- data.frame(
+  Catégorie = c(
+    "Inférence d’arbre","Inférence d’arbre","Inférence d’arbre","Inférence d’arbre",
+    "Alignement","Alignement","Alignement",
+    "Autres outils","Autres outils"
+  ),
+  Méthode = c(
+    "Inférence bayésienne",
+    "Parcimonie",
+    "Maximum de vraisemblance",
+    "Méthodes de distance",
+    "MUSCLE",
+    "MAFFT",
+    "Clustal",
+    "Viewer d’arbre Newick",
+    "Conversion"
+  ),
+  PhyloDendron = c(
+    "Utilise MrBayes pour estimer les phylogénies des espèces et les temps de divergence",
+    "MPBoot ; ",
+    "IQTREE ;",
+    "Choisit automatiquement le meilleur modèle de substitution selon le BIC",
+    "MUSCLE v5 ; plus précis et plus rapide (utilise multithreading) que v3",
+    "MAFFT v7",
+    "ClustalO ; plus rapide pour les séquences plus longues",
+    "Plus d'options pour manipuler l'arbre que T-REX",
+    "Conversion entre différents types de fichiers"
+  ),
+  TREX = c(
+    "Pas disponible",
+    " ",
+    " ",
+    "Les utilisateurs saisissent leur choix de modèle de substitution",
+    "MUSCLE v3",
+    "MAFFT v6",
+    "ClustalW ; plus rapide pour les séquences plus courtes",
+    "Options pour manipuler l'arbre",
+    "Pas disponible"
+  ),
+  stringsAsFactors = FALSE
+)
+
+
+
+kable(data, format = "latex", escape = FALSE, align = "c", caption = "Résumé des outils utilisés \\label{tab:summary}", float = TRUE) %>%
+  kable_styling(
+    latex_options = c("HOLD_position"),
+    position = "center"
+  ) %>%
+  column_spec(1, bold = TRUE) %>% 
+  column_spec(2, width = "3.25cm") %>%
+  column_spec(3, width = "4.25cm") %>%
+  column_spec(4, width = "4.25cm") %>%
+  collapse_rows(columns = 1, latex_hline = "full") %>%
+  row_spec(0, bold = TRUE, font_size = 12) 
+```
+
 # Références 
 
 <!-- Chaque référence doit être citée au moins une fois dans le texte  -->
