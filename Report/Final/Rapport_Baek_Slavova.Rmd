@@ -134,7 +134,7 @@ knitr::include_graphics("images/mpboot2.png")
 
 - **MAFFT :** 
 
-- **Clustal Omega :** 
+- **Clustal Omega :** ClustalO utilise des HMM pour l'alignement profil-profil ce qui lui permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées. En revanche, ClustalW, son predecesseur, utilise une stratégie d'alignement progressif avec pondération des séquences. En effet, Clustal suit O(nlogn) alors que CLustalW suit O(n^2), ce qui demontre qu'avec un plus grand nombre de sequence, ClustalO est plus rapide. ClustalO a aussi remplace completement ClustalW, ce dernier ne recevant plus de mises a jour, ni de support. *something about threads as well* Il est donc important pour nous d'implementer des outils actuels afin de non seulement augmenter la precision des resultats, mais aussi de pouvoir avoir acces a du soutien si un probleme survient.
 
 
 **Autre Outils :**
@@ -152,17 +152,43 @@ Afin de tester les outils, plusieurs groupes de séquences d'acides amines de r�
 
 ### Tester ClustalO
 
-Pourquoi implementer CLustalO au lieu de ClustalW? En rappel, ClustalO utilise des HMM pour l'alignement profil-profil ce qui lui permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées. En revanche, ClustalW utilise une stratégie d'alignement progressif avec pondération des séquences. En effet, Clustal suit O(nlogn) alors que CLustalW suit O(n^2), ce qui demontre qu'avec un plus grand nombre de sequence, ClustalO est plus rapide. ClustalO a aussi remplace completement ClustalW, ce dernier ne recevant plus de mises a jour, ni de support. *something about threads as well* Il est donc important pour nous d'implementer des outils actuels afin de non seulement augmenter la precision des resultats, mais aussi de pouvoir avoir acces a du soutien si un probleme survient.
+Pour tester la performance de ClustalO contre son predecesseur ClustalW, nous avons voulu calculer le temps d'execution et la qualité de l'alignement. Pour le test le vitesse, ClustalO et CLustalW ont ete execute a 5 reprises sur 3 groupes de sequences de taille differente (261, 1044, 2088) prises de BaliBASE, et la moyenne du temps a ete retenue pour chaque groupe. 
 
-Pour le test le vitesse, ClustalO et CLustalW ont ete execute a 5 reprises sur 3 groupes de sequences de taille differente (261, 1044, 2088), et la moyenne du temps a ete retenue pour chaque groupe. Le Figure \@ref(fig:co) ci dessous demontre que, en augmentant le nombre de sequence, ClustalO performe mieux que ClustalW.
+ 
+Pour le test de qualité de l'alignement, les alignements produits par ClustalO et ClustalW ont ete appliques sur IQTREE3 et les resultats du score de maximum de vraisemblance de l'arbre optimal géneré de chacun a ete comparé. Le meilleur alignement sera donc celui avec le score de maximum de vraisemblance le plus bas. 
 
+  
+### Tester MPBoot
+Afin de tester la performance de MPBoot, nous avons décidé de le comparer à un des algorithmes de maximum de parcimonie disponible sur T-rex. PROTPARS de la suite Phylips a été choisi. Il est specifiquement programmé pour l'analyse de séquence d'acides aminés. Les alignements de séquences générés par ClustalO à l'étape precedante sont repris, puis sont telecharge dans MPBoot et PROTPARS. Notez que PROTPARS n'acceptent que les fichiers Phylips, donc nous les avons convertis à l'aide de l'outil de conversion disponible sur **Phylodendron.rocks**. Puisque ces deux algorithmes performent très rapidement (moins de 1 seconde par groupe de séquence dans notre jeu de données), seulement le score de parcimonie de chacun a été comparé.
+    
+      
+### Tester IQTREE
+      
+      
+  
+
+# Résultats et discussion 
+
+## Les résultats 
+
+### ClustalO  
+    
+**Test de vitesse :**    
+      
+Le Figure \@ref(fig:co) ci dessous demontre que, en augmentant le nombre de sequence, ClustalO performe mieux que ClustalW.
+    
+    
 ```{r co, echo=FALSE, out.width="50%", fig.align="center", fig.cap="Moyenne du temps d'execution de CLustalO et ClustalW sur 3 groupes de sequences de taille differente",fig.pos="H"}
 values <- matrix(c(133, 24, 324, 293, 703, 1187), nrow = 2)
 barplot(values, beside = TRUE, col = c("purple", "yellow"), names.arg = c(261,1044,2088), legend.text = c("ClustalO", "ClustalW"), xlab = "Nombre de séquences", ylab = 'Temps (s)', main="Temps d'execution de l'alignement: ClustalO vs ClustalW") 
 
 ```
- 
-Pour le test de performance, les alignements produits par ClustalO et ClustalW ont ete appliques sur IQTREE3 et les resultats du LogL de chacun a ete compare. Le tableau ci dessous demontre que ClustalO effectue un meilleur alignement que ClustalW, echouant seulement 4 fois sur 38.  
+  
+
+**Test de la qualité de l'alignement :**   
+    
+Le tableau ci dessous demontre que ClustalO effectue un meilleur alignement que ClustalW, echouant seulement 4 fois sur 38. 
+
 
 ```{r include=FALSE}
 library(knitr)
@@ -186,12 +212,10 @@ data %>%
               color = "black")
 ```
 
-  
-### Tester MPBoot
 
-Ici, nous reprenons les alignements de séquences générés par ClustalO. Nous appliquons ensuite MPBoot et PROTPARS à chacun de ces alignements.  
-    
-    
+### MPBoot
+
+
 ```{r echo=FALSE, eval=FALSE}
 data2 <- read.csv('mpboot_vs_protpars.csv')
 
@@ -206,11 +230,12 @@ data2 %>%
               background = ifelse(data2$Difference.Parsimony.score < 0, "#FFCCCC", "#CCFFCC"),
               color = "black")
 ```
-      
-      
-### Tester IQTREE
-      
-      
+
+
+
+### IQTREE
+
+
 ```{r echo=FALSE, eval=FALSE}
 data3 <- read.csv('iqtree_vs_raxml.csv')
 
@@ -225,11 +250,9 @@ data3 %>%
               background = ifelse(data3$Time.Difference < 0, "#FFCCCC", "#CCFFCC"),
               color = "black")
 ```
-  
 
-# Résultats et discussion 
 
-## Les résultats 
+### MrBayes
 
 ## Analyse et interprétation des résultats
 
@@ -239,7 +262,6 @@ Proposez des perspectives ou des améliorations possibles
  - Mr Bayes vs Beast
  - have bayesianinference run in the background
 
-## Comparison
 
 # Conclusion 
 
