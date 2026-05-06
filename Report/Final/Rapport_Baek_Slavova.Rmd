@@ -25,11 +25,14 @@ bibliography: references.bib
 csl: vancouver.csl
 link-citations: true
 toc-title: "Table des matières"
+mainfont: "Helvetica Neue"
 ---
+
+\newpage
 
 # Résumé
 
-Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé **Phylodendron.rocks**. Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Le but ultime de ce projet est de faciliter l'analyse phylogénétique pour les utilisateurs, leur offrant un grand éventail de possibilités pour répondre à leurs besoins spécifiques. Ultimement, ce projet nous a permis de nous familiariser avec plusieurs langages de programmation, et d'appliquer les connaissances acquises durant le cours BIF-7101.
+Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé **Phylodendron.rocks**. Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Le but ultime de ce projet est de faciliter l'analyse phylogénétique pour les utilisateurs, leur offrant un grand éventail de possibilités pour répondre à leurs besoins spécifiques. Sur le plan personnel, ce projet nous a permis de nous familiariser avec plusieurs langages de programmation, et d'appliquer les connaissances acquises durant le cours BIF-7101.
 
 # Introduction et problématique 
 
@@ -37,7 +40,7 @@ L'inférence phylogénétique permet d'étudier les relations évolutives entre 
 
 ## Les objectifs 
 
-L'objectif principal de ce projet est d'offir aux utilisateurs des outils qui sont à jour et qui ne sont pas disponibles sur T-rex afin qu'ils puissent recevoir de meilleurs résultats, et ce, souvent plus rapidement. Certes, les anciennes versions peuvent encore fonctionner, mais n'offre pas le meilleur potentiel aux données. 
+L'objectif principal de ce projet est d'offir aux utilisateurs des outils qui sont à jour et qui ne sont pas disponibles sur T-rex afin qu'ils puissent recevoir de meilleurs résultats, et ce, souvent plus rapidement. Certes, les anciennes versions peuvent encore fonctionner, mais n'offrent pas le meilleur potentiel aux données. 
   
 Un second objectif est de créer un site web intuitif et facile d'utilisation. Nous voulons que les utilisateurs puissent télécharger les fichiers produits par les outils d'inférence au besoin et de pouvoir visualiser leurs arbres de diverses manières en leur permettant de changer les paramètres désirés.
 
@@ -98,12 +101,13 @@ knitr::include_graphics("images/options.png")
 knitr::include_graphics("images/pd_bayesian_inf.png")
 ```
 
-- **Parcimonie : ** Pour l'inférence par méthode de parcimonie, nous avons décidé d'implémenter l'outil MPBoot [@mpboot] qui n'est pas disponible sur la plateforme T-rex. Ce programme permet également de faire une approximation rapide des bootstraps de parcimonie maximale (UFBoot, inspiré des méthodes similaires employées pour celles de maximum de vraisemblance). Il n'est donc pas nécessaire d'utiliser un outil supplémentaire (ex: SeqBoot) si le calcul des bootstraps est désiré. Pour l'algorithme de recherche, il utilise le réarrangement SPR et implémente le Parsimony ratchet. Cet algorithme blabla. Sur notre plateforme, l'utilisateur télécharge ses séquences alignées en format FASTA et choisit les valeurs des paramètres suivant:  
+- **Parcimonie : ** Pour l'inférence par méthode de parcimonie, nous avons décidé d'implémenter l'outil MPBoot [@mpboot] qui n'est pas disponible sur la plateforme T-rex. Ce programme permet également de faire une approximation rapide des bootstraps de parcimonie maximale (UFBoot, inspiré des méthodes similaires employées pour celles de maximum de vraisemblance). Il n'est donc pas nécessaire d'utiliser un outil supplémentaire (ex: SeqBoot) si le calcul des bootstraps est désiré. Pour l'algorithme de recherche, il utilise le réarrangement SPR et implémente le Parsimony ratchet. Cet algorithme permet de trouver les arbres phylogenetiques les plus parsimonieux en effectuant plusieurs cycles d'echantionllonage et de ponderation des sites pour ensuite realiser des rearrangement des branches en utilisant la methode SPR. [@ratchet]. Sur notre plateforme, l'utilisateur télécharge ses séquences alignées en format FASTA et choisit les valeurs des paramètres suivant:  
   - Ultrafast Bootstraps:
   - SPR Radius: Indique le rayon de SPR. Un rayon plus grand permet à l'algorithme de déplacer des branches plus loin dans l'arbre, ce qui augmente la possibilité de trouver un optimum global (mais augmente le temps de computation).
   - Ratchet Iterations:
   - Ratchet %:
-  - Use NNI instead of SPR: Utile lorsqu'une analyse plus rapide est désirée, mais produit un résultat moins stricte et minutueux.
+  - Use NNI instead of SPR: Utile lorsqu'une analyse plus rapide est désirée, mais produit un résultat moins stricte et minutueux.     
+   
   Les paramètres par défaut sont aussi disponibles afin de faciliter la tâche aux utilisateurs (Figure \@ref(fig:mpboot1)). À la fin de l'analyse, plusieurs fichiers informatifs sont disponibles pour le téléchargement (Figure \@ref(fig:mpboot2)).
   
 ```{r mpboot1, echo=FALSE, out.width="75%", fig.align="center", fig.cap="Paramètres d'inférence par MPBoot",fig.pos="H"}
@@ -113,10 +117,10 @@ knitr::include_graphics("images/mpboot1.png")
 knitr::include_graphics("images/mpboot2.png")
 ```
 
-- **Maximum de vraisemblance :** Quant à l'inférence par maximum de vraisemblance, l'outil IQTREE [@iqtree] à été utilisé (non disponible sur T-rex).
+- **Maximum de vraisemblance :** Quant à l'inférence par maximum de vraisemblance, l'outil IQTREE (v3.1.1) [@iqtree] à été utilisé (non disponible sur T-rex).
 
 - **Méthodes de distance :** Pour la construction d'arbres par méthodes de distances, l'utilisateur saisit deux entrées : un fichier FASTA aligné et la méthode de distance, NJ ou UPGMA. Contrairement au plateforme T-REX, où le modèle de substitution est sélectionné manuellement par l'utilisateur, nous avons utilisé [IQ-TREE](https://iqtree.github.io) [@iqtree] afin de sélectionner le modèle de substitution le plus approprié en nous basant sur le critère BIC (Bayesian Information Criterion). Le mot-clé MFP (ModelFinder Plus) indique à IQ-TREE d'effectuer l'analyse en utilisant le modèle qui minimise le score BIC [[@iqtreeInfo].
-  ```{python iqtree, eval=FALSE}
+  ```{python iqtree, eval=FALSE, python.reticulate = FALSE}
   cmd = ["iqtree3", "-s", filepath, "-m", "MFP", "-nt", "AUTO", 
           "-pre", output_prefix, "-redo"]
   ```
@@ -144,21 +148,21 @@ knitr::include_graphics("images/mpboot2.png")
 Cette section porte sur des tests effectués afin de valider l'implémentation des nouveaux outils (ClustalO, MPBoot, IQTREE et MrBayes) en les comparant avec un outil semblable disponible sur T-rex.  
 
 ### Jeux de données  
-Afin de tester les outils, plusieurs séquences de référence ont été téléchargées de la base BaliBase.
+Afin de tester les outils, plusieurs groupes de séquences d'acides amines de référence ont été téléchargées de la base de donnees BaliBASE (Benchmark Alignement dataBASE). Cette base de donnees est un repertoire utilise frequemment pour tester des outils d'alignement de sequence multiples [@balibase]. Nous allons donc l'employer d'abord pour evaluer la performance de ClustalO, et ensuite utiliser ces memes resultats d'alignement pour l'evaluation les autres outils phylogenetiques. Ce qui distingue principalement ce jeu de donnees est le fait que les sequences comportent une identite de sequence tres basse (moins de \(25\%\)), offrant alors un vrai test de stress a nos outils. 
 
 ### Tester ClustalO
 
-Pourquoi implémenter ClustalO au lieu de ClustalW?  
-ClustalO utilise des HMM pour l'alignement profil-profil ->  permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées.   
-ClustalW utilise une stratégie d'alignement progressif avec pondération des séquences.   
-Test case: Benchmark references BaliBase3 -> run clustalO et clustalW sur les references de BaliBase3 et appliquer iqtree3 aux résultats pour démontrer que clustalO produit un meilleur alignement de séquences.   
+Pourquoi implementer CLustalO au lieu de ClustalW? En rappel, ClustalO utilise des HMM pour l'alignement profil-profil ce qui lui permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées. En revanche, ClustalW utilise une stratégie d'alignement progressif avec pondération des séquences. En effet, Clustal suit O(nlogn) alors que CLustalW suit O(n^2), ce qui demontre qu'avec un plus grand nombre de sequence, ClustalO est plus rapide. ClustalO a aussi remplace completement ClustalW, ce dernier ne recevant plus de mises a jour, ni de support. *something about threads as well* Il est donc important pour nous d'implementer des outils actuels afin de non seulement augmenter la precision des resultats, mais aussi de pouvoir avoir acces a du soutien si un probleme survient.
 
-```{r echo=FALSE}
+Pour le test le vitesse, ClustalO et CLustalW ont ete execute a 5 reprises sur 3 groupes de sequences de taille differente (261, 1044, 2088), et la moyenne du temps a ete retenue pour chaque groupe. Le Figure \@ref(fig:co) ci dessous demontre que, en augmentant le nombre de sequence, ClustalO performe mieux que ClustalW.
+
+```{r co, echo=FALSE, out.width="50%", fig.align="center", fig.cap="Moyenne du temps d'execution de CLustalO et ClustalW sur 3 groupes de sequences de taille differente",fig.pos="H"}
 values <- matrix(c(133, 24, 324, 293, 703, 1187), nrow = 2)
-barplot(values, beside = TRUE, col = c("purple", "yellow"), names.arg = c(261,1044,2088), legend.text = c("ClustalO", "ClustalW"), xlab = "Nombre de séquences", ylab = 'Temps (s)') 
+barplot(values, beside = TRUE, col = c("purple", "yellow"), names.arg = c(261,1044,2088), legend.text = c("ClustalO", "ClustalW"), xlab = "Nombre de séquences", ylab = 'Temps (s)', main="Temps d'execution de l'alignement: ClustalO vs ClustalW") 
 
 ```
-
+ 
+Pour le test de performance, les alignements produits par ClustalO et ClustalW ont ete appliques sur IQTREE3 et les resultats du LogL de chacun a ete compare. Le tableau ci dessous demontre que ClustalO effectue un meilleur alignement que ClustalW, echouant seulement 4 fois sur 38.  
 
 ```{r include=FALSE}
 library(knitr)
@@ -167,7 +171,7 @@ library(dplyr)
 ```
 
   
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, warning=FALSE, eval=FALSE}
 data <- read.csv('co_vs_cw.csv')
 
 data %>%
@@ -188,7 +192,7 @@ data %>%
 Ici, nous reprenons les alignements de séquences générés par ClustalO. Nous appliquons ensuite MPBoot et PROTPARS à chacun de ces alignements.  
     
     
-```{r echo=FALSE}
+```{r echo=FALSE, eval=FALSE}
 data2 <- read.csv('mpboot_vs_protpars.csv')
 
 data2 %>%
@@ -207,7 +211,7 @@ data2 %>%
 ### Tester IQTREE
       
       
-```{r echo=FALSE}
+```{r echo=FALSE, eval=FALSE}
 data3 <- read.csv('iqtree_vs_raxml.csv')
 
 data3 %>%
