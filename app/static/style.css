@@ -25,6 +25,12 @@ body {
     color: #e2e8f0;
     padding: 8px 16px;
     font-size: 20px;
+    min-width: 180px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s ease;
@@ -48,6 +54,8 @@ body {
 /*  DROPDOWN  */
 .dropdown {
     position: relative;
+    display: inline-flex;
+    align-items: stretch;
 }
 
 /*  DROPDOWN MENU  */
@@ -56,13 +64,14 @@ body {
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 200px;
+    min-width: 100%;
     background: #1E0233;
     border-radius: 10px;
     overflow: hidden;
     opacity: 0;
     transition: all 0.25s ease;
     margin-top: 0;
+    box-sizing: border-box;
 }
 
 /*  DROPDOWN ITEMS  */
@@ -75,6 +84,11 @@ body {
     border: none;
     color: #e2e8f0;
     transition: all 0.2s ease;
+}
+
+.dropdown-content button.active {
+    background: linear-gradient(160deg, #5a2285, #431963, #5a2285);
+    color: white;
 }
 
 /*  DROPDOWN ITEM HOVER  */

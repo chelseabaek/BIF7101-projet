@@ -5,6 +5,10 @@ function showTool(toolId, btn) {
     document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
     document.getElementById(toolId).classList.add('active');
 
+    if (!btn) {
+        btn = document.querySelector('.topnav button[onclick*="\'' + toolId + '\'"]');
+    }
+
     document.querySelectorAll('.topnav button, .dropdown-content button').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
@@ -30,6 +34,13 @@ function showTool(toolId, btn) {
             if (window.syncInferenceWorkspaceHeights) window.syncInferenceWorkspaceHeights('distance'); 
         }
     }, 50);
+}
+
+function dismissNotice(noticeId) {
+    var notice = document.getElementById(noticeId);
+    if (notice) {
+        notice.remove();
+    }
 }
 
 // ==========================================
