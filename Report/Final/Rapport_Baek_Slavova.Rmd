@@ -32,8 +32,6 @@ mainfont: "Helvetica Neue"
 
 # Résumé
 
-# Résumé
-
 Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé [**Phylodendron.rocks**](https://phylodendron.rocks). Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Ce projet a été motivé par le constat que le site [**T-REX**](https://www.trex.uqam.ca), recommandé aux étudiants en bioinformatique de l'UQAM pour la réalisation d'analyses phylogénétiques, n'était pas à jour avec les outils les plus récents.
 
 Nous avons implémenté des versions plus récentes de certains outils disponibles sur T-REX, ainsi que des outils supplémentaires qui n'étaient pas inclus. Les performances des outils que nous avons implémentés ont été évaluées à l'aide de jeux de données de référence (BaliBASE) et comparées à celles des outils utilisés sur T-REX. Les résultats montrent une précision et une efficacité de calcul améliorées. 
