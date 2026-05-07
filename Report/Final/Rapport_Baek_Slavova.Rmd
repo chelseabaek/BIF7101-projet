@@ -222,12 +222,13 @@ Une autre amélioration concerne le logiciel. Nous pourrions implémenter une ex
 
 
 \renewcommand{\arraystretch}{1.75}
-
-```{r summary, echo=FALSE, warning=FALSE, fig.cap="Summary", fig.pos="H"}
-
+```{r, include=FALSE, message=FALSE, warning=FALSE}
 library(knitr)
 library(kableExtra)
 library(dplyr)
+```
+
+```{r summary, echo=FALSE, warning=FALSE, fig.cap="Summary", fig.pos="H"}
 
 data <- data.frame(
   Catégorie = c(
