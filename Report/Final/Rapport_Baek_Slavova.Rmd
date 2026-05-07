@@ -71,7 +71,7 @@ Pour développer l'interface utilisateur, nous avons utilisé les trois langages
 
 - **JavaScript** : Permet de rendre le site dynamique et interactif.
 
-De plus, nous avons essayé de respecter les normes d'accessibilité web afin de garantir que la plateforme soit accessible au plus grand nombre. Nous avons utilisé le [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker) pour vérifier que les rapports de contraste *text-to-background* et la taille de la police respectent ou dépassent les normes de WebAIM.
+De plus, nous avons essayé de respecter les normes d'accessibilité web afin de garantir que la plateforme soit accessible au plus grand nombre. Nous avons utilisé le [**WebAIM Contrast Checker**](https://webaim.org/resources/contrastchecker) pour vérifier que les rapports de contraste *text-to-background* et la taille de la police respectent ou dépassent les normes de WebAIM.
 
 **Déploiement : **
 
@@ -80,7 +80,7 @@ De plus, nous avons essayé de respecter les normes d'accessibilité web afin de
 
   - **requirements.txt :** Ce fichier contient tous les *packages* Python nécessaires au projet (`flask`, `gunicorn`, `biopython`, `matplotlib`).
 
-- **Hosting** : Nous hébergeons notre site pour le rendre accessible aux utilisateurs d’Internet. Notre site Web est hébergé sur [DigitalOcean](https://www.digitalocean.com). Nous avons enregistré notre nom de domaine via [Name.com](https://www.name.com) et choisi DigitalOcean pour l'hébergement, en profitant du [GitHub Student Developer Pack](https://education.github.com/pack), qui nous offrait un nom de domaine gratuit pendant un an et 200 $ de crédits DigitalOcean.
+- **Hébergement** : Nous hébergeons notre site pour le rendre accessible aux utilisateurs d’Internet. Notre site Web est hébergé sur [**DigitalOcean**](https://www.digitalocean.com). Nous avons enregistré notre nom de domaine via [**Name.com**](https://www.name.com) et choisi DigitalOcean pour l'hébergement, en profitant du [**GitHub Student Developer Pack**](https://education.github.com/pack), qui nous offrait un nom de domaine gratuit pendant un an et 200 $ de crédits DigitalOcean. (L'environnement d'hébergement offre des ressources de calcul plus limitées que nos ordinateurs, notamment en termes de RAM et de cœurs CPU. Étant donné que certaines analyses phylogénétiques peuvent être intensives, le site Web peut subir des arrêts lors du traitement de grands ensembles de données.)
 
 
 ### Phylogénétique
@@ -133,9 +133,9 @@ knitr::include_graphics("images/mpboot2.png")
 
 **Alignement : **
 
-- **MUSCLE :** 
+- **MUSCLE :** Par rapport à la version disponible sur T-REX, v3, PhyloDendron intègre une implémentation plus récente de MUSCLE, v5, qui comprend des stratégies d'optimisation améliorées pour l'alignement de séquences multiples [@muscle], notamment une meilleure précision d'alignement.
 
-- **MAFFT :** 
+- **MAFFT :** Nous avons implémenté une version plus récente de MAFFT v7, par rapport à celle disponible sur T-REX, MAFFT v6.864. Cette implémentation mise à jour offre une exécution plus rapide ainsi que des options de stratégies d'alignement telles que des `iterative refinement methods` que nous offrons à l'utilisateur [@mafft].
 
 - **Clustal Omega :** ClustalO utilise des HMM pour l'alignement profil-profil ce qui lui permet d'obtenir une meilleure précision, notamment pour les relations phylogénétiques éloignées. En revanche, ClustalW, son predecesseur, utilise une stratégie d'alignement progressif avec pondération des séquences. En effet, Clustal suit O(nlogn) alors que CLustalW suit O(n^2), ce qui demontre qu'avec un plus grand nombre de sequence, ClustalO est plus rapide. ClustalO a aussi remplace completement ClustalW, ce dernier ne recevant plus de mises a jour, ni de support. *something about threads as well* Il est donc important pour nous d'implementer des outils actuels afin de non seulement augmenter la precision des resultats, mais aussi de pouvoir avoir acces a du soutien si un probleme survient.
 
@@ -162,7 +162,7 @@ Pour le test de qualité de l'alignement, les alignements produits par ClustalO 
 
   
 ### Tester MPBoot
-Afin de tester la performance de MPBoot, nous avons décidé de le comparer à un des algorithmes de maximum de parcimonie disponible sur T-REX. PROTPARS de la suite Phylips a été choisie. Il est spécifiquement programmé pour l'analyse de séquence d'acides aminés. Les alignements de séquences générés par ClustalO à l'étape précédente sont repris, puis sont téléchargés dans MPBoot et PROTPARS. Notez que PROTPARS n'accepte que les fichiers Phylips, donc nous les avons convertis à l'aide de l'outil de conversion disponible sur **Phylodendron.rocks**. Puisque ces deux algorithmes performent très rapidement (moins de 1 seconde par groupe de séquence dans notre jeu de données), seul le score de parcimonie de chacun a été comparé.
+Afin de tester la performance de MPBoot, nous avons décidé de le comparer à un des algorithmes de maximum de parcimonie disponible sur T-REX. PROTPARS de la suite Phylips a été choisie. Il est spécifiquement programmé pour l'analyse de séquence d'acides aminés. Les alignements de séquences générés par ClustalO à l'étape précédente sont repris, puis sont téléchargés dans MPBoot et PROTPARS. Notez que PROTPARS n'accepte que les fichiers Phylips, donc nous les avons convertis à l'aide de l'outil de conversion disponible sur Phylodendron.rocks. Puisque ces deux algorithmes performent très rapidement (moins de 1 seconde par groupe de séquence dans notre jeu de données), seul le score de parcimonie de chacun a été comparé.
     
       
 ### Tester IQTREE
@@ -264,9 +264,9 @@ L’objectif principal de ce projet était de fournir aux utilisateurs une plate
 
 L’utilisabilité est améliorée grâce à l’intégration de paramètres prédéfinis suggérés. De plus, les arbres inférés sont automatiquement générés et affichés à la fin de chaque analyse, donc aucun outil supplémentaire n'est nécessaire pour visualiser l'arbre.
 
-**PhyloDendron.rocks** constitue une extension de T-REX dans plusieurs domaines (résumé dans la table \@ref(tab:summary)). Pour l'inférence d'arbres phylogénétiques, l'intégration d'IQ-TREE, MPBoot et MrBayes permet aux utilisateurs d'accéder à ces méthodes (non disponibles sur T-REX). Pour l'alignement de séquences, des outils tels que MUSCLE, MAFFT et ClustalO offrent des alignements plus rapides et plus précis que les versions précédentes, notamment pour les grands ensembles de données. Enfin, nous permettons aux utilisateurs de télécharger des fichiers Newick pour la visualisation et de convertir des fichiers.
+PhyloDendron.rocks constitue une extension de T-REX dans plusieurs domaines (résumé dans la table \@ref(tab:summary)). Pour l'inférence d'arbres phylogénétiques, l'intégration d'IQ-TREE, MPBoot et MrBayes permet aux utilisateurs d'accéder à ces méthodes (non disponibles sur T-REX). Pour l'alignement de séquences, des outils tels que MUSCLE, MAFFT et ClustalO offrent des alignements plus rapides et plus précis que les versions précédentes, notamment pour les grands ensembles de données. Enfin, nous permettons aux utilisateurs de télécharger des fichiers Newick pour la visualisation et de convertir des fichiers.
 
-Des améliorations peuvent être apportées pour optimiser la portée et les performances de **PhyloDendron.rocks**. Il existe de nombreux autres outils phylogénétiques qui vont au-delà de ceux que nous avons implémentés et de ceux disponibles sur T-REX. Par exemple, nous pourrions ajouter un outil d'inférence bayésienne, tel que BEAST, qui estime les dates de divergence entre espèces à partir de séquences et de calibrations fossiles ou biogéographiques.
+Des améliorations peuvent être apportées pour optimiser la portée et les performances de PhyloDendron.rocks. Il existe de nombreux autres outils phylogénétiques qui vont au-delà de ceux que nous avons implémentés et de ceux disponibles sur T-REX. Par exemple, nous pourrions ajouter un outil d'inférence bayésienne, tel que BEAST, qui estime les dates de divergence entre espèces à partir de séquences et de calibrations fossiles ou biogéographiques.
 
 Une autre amélioration concerne le logiciel. Nous pourrions implémenter une exécution asynchrone pour les analyses nécessitant une puissance de calcul importante, telles que MrBayes, ce qui permettrait aux utilisateurs de continuer à utiliser la plateforme pendant que les calculs sont en cours.
 
@@ -309,8 +309,8 @@ data <- data.frame(
   ),
   TREX = c(
     "Pas disponible",
-    " ",
-    " ",
+    "Protopars, etc.",
+    "RAxML, etc.",
     "Les utilisateurs saisissent leur choix de modèle de substitution",
     "MUSCLE v3",
     "MAFFT v6",
@@ -341,6 +341,6 @@ kable(data, format = "latex", escape = FALSE, align = "c", caption = "Résumé d
 
 <!-- Chaque référence doit être citée au moins une fois dans le texte  -->
 
----
-nocite: '@*'
-...
+<!------->
+<!--nocite: '@*'-->
+<!--...-->
