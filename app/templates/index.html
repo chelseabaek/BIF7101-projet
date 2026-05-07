@@ -32,7 +32,7 @@
         </div>
 
         <div class="dropdown">
-            <button class="dropbtn">Sequence Alignment</button>
+            <button class="dropbtn">Alignment</button>
             <div class="dropdown-content">
                 <button onclick="showTool('muscle', this)" class="{{ 'active' if active_tab == 'muscle' else '' }}">MUSCLE</button>
                 <button onclick="showTool('mafft', this)" class="{{ 'active' if active_tab == 'mafft' else '' }}">MAFFT</button>
@@ -51,27 +51,76 @@
 
     <div class="container">
         <div class="main">
+            <div id="data-timeout-notice" style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; padding:14px 16px; border:1px solid #5a2285; border-radius:8px; background:#faf5ff; color:#5a2285;">
+                <p style="margin:0; font-size:14px; line-height:1.5;">
+                    Note that for large data files, timeouts may occur due to the limited resources of the hosting environment.
+                </p>
+                <button type="button" onclick="dismissNotice('data-timeout-notice')" aria-label="Dismiss notice" style="border:none; background:transparent; color:#5a2285; cursor:pointer; line-height:1; padding:0; width:24px; height:24px; display:grid; place-items:center; flex:0 0 24px;">
+                    <span style="display:block; font-size:20px; line-height:1; transform: translateY(-1px);">&times;</span>
+                </button>
+            </div>
             
             <!-- Main Page -->
             <div id="main-page" class="tool active">
                 <h2>PhyloDendron</h2>
-                <p>info</p>
+                <p style="font-size: 16px; line-height: 1.6; color: #4a5568;">
+                    PhyloDendron.rocks allows users to conduct phylogenetic analyses that normally rely on command-line tools and scripting environments
+                </p>
                 <br>
-                <h2>Phylogenetic Methods</h2>
-                <h3>Bayesian Inference</h3>
-                <h3>Parsimony</h3>
-                <h3>Maximum Likelihood</h3>
-                <h3>Distance Methods</h3>
-                <br>
-                <h2>Sequence Alignment</h2>
-                <h3>MUSCLE</h3>
-                <h3>MAFFT</h3>
-                <h3>Clustal Omega</h3>
-                <br>
-                <h2>Other Tools</h2>
-                <h3>Newick Tree viewer</h3>
-                <h3>Sequence Alignment</h3>
-                <h3>Conversion</h3>
+                <h2 style="color: #5a2285; margin-top: 30px;">Tree Inference</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div onclick="showTool('bayesian-inference')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Bayesian Inference</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Probabilistic method for tree inference using MCMC</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tools:</strong> MrBayes</p>
+                    </div>
+                    <div onclick="showTool('parsimony')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Parsimony</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Finds the tree requiring the fewest evolutionary changes</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tools:</strong> MPBoot</p>
+                    </div>
+                    <div onclick="showTool('maximum-likelihood')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Maximum Likelihood</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Evaluates trees based on probability of observed data under evolutionary models</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tools:</strong> IQ-TREE</p>
+                    </div>
+                    <div onclick="showTool('distance')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Distance Methods</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Builds trees from pairwise distances from a multiple sequence alignment</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tools:</strong> Biopython's NJ and UPGMA</p>
+                    </div>
+                </div>
+                <h2 style="color: #5a2285; margin-top: 30px;">Sequence Alignment</h2>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                    <div onclick="showTool('muscle')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">MUSCLE</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Multiple sequence alignment</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tool:</strong> MUSCLE (v5)</p>
+                    </div>
+                    <div onclick="showTool('mafft')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">MAFFT</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Multiple sequence alignment</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tool:</strong> MAFFT (v7)</p>
+                    </div>
+                    <div onclick="showTool('clustalo')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Clustal Omega</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Multiple sequence alignment for large sequences</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tool:</strong> Clustal Omega</p>
+                    </div>
+                </div>
+                <h2 style="color: #5a2285; margin-top: 30px;">Other Tools</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div onclick="showTool('newick_tree_viewer')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Newick Tree Viewer</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Visualize Newick trees</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tool:</strong> PhyloCanvas</p>
+                    </div>
+                    <div onclick="showTool('conversion')" style="background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #5a2285; cursor: pointer;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); this.click();}">
+                        <h3 style="margin-top: 0; color: #2d3748;">Conversion</h3>
+                        <p style="margin: 0; color: #718096; font-size: 14px;">Convert between different sequence file formats</p>
+                        <p style="margin: 8px 0 0 0; color: #718096; font-size: 12px;"><strong>Tool:</strong> BioPython SeqIO</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Newick Tree Viewer -->
@@ -270,6 +319,14 @@
                         </button>
                     </a>
                 {% endif %}
+                <br><br>
+                <p>
+                    <b>Citations: </b><br>
+                    <span style="font-size: 12px;">
+                        Kazutaka Katoh, Daron M. Standley, MAFFT Multiple Sequence Alignment Software Version 7: Improvements in Performance and Usability, Molecular Biology and Evolution, Volume 30, Issue 4, April 2013, Pages 772–780
+                        <a href="https://doi.org/10.1093/molbev/mst010">https://doi.org/10.1093/molbev/mst010</a>
+                    </span>
+                </p>
             </div>
 
             <!-- sequence alignment/CLUSTALO -->
@@ -327,6 +384,14 @@
                         </button>
                     </a>
                 {% endif %}
+                <br><br>
+                <p>
+                    <b>Citations: </b><br>
+                    <span style="font-size: 12px;">
+                        Madeira F, Madhusoodanan N, Lee J, et al. The EMBL-EBI Job Dispatcher sequence analysis tools framework in 2024. Nucleic Acids Research. 2024 Jul;52(W1):W521-W525
+                        <a href="https://doi.org/10.1093/nar/gkae241 ">https://doi.org/10.1093/nar/gkae241</a>
+                    </span>
+                </p>
             </div>
             
             <!-- Bayesian Inference -->
@@ -904,6 +969,17 @@
                         </a>
                     </div>
                 {% endif %}
+                <br><br>
+                <p style="bottom: 0; left: 0; width: 100%;">
+                    <b>Citations: </b><br>
+                    <p style="font-size: 12px;">
+                        Thomas K.F. Wong, Nhan Ly-Trong, Huaiyan Ren, Hector Banos, Andrew J. Roger, 
+                        Edward Susko, Chris Bielow, Nicola De Maio, Nick Goldman, Matthew W. Hahn, 
+                        Gavin Huttley, Robert Lanfear, Bui Quang Minh (2025) IQ-TREE 3: Phylogenomic 
+                        Inference Software using Complex Evolutionary Models. Submitted. 
+                        <a href="https://ecoevorxiv.org/repository/view/8916/">https://ecoevorxiv.org/repository/view/8916/</a>
+                        </p>
+                </p>
             </div>
             <!-- File Conversion -->
             <div id="conversion" class="tool">
