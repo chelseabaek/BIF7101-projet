@@ -25,23 +25,29 @@ bibliography: references.bib
 csl: vancouver.csl
 link-citations: true
 toc-title: "Table des matières"
+mainfont: "Helvetica Neue"
 ---
 
 \newpage
 
 # Résumé
 
-Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé **Phylodendron.rocks**. Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Le but ultime de ce projet est de faciliter l'analyse phylogénétique pour les utilisateurs, leur offrant un grand éventail de possibilités pour répondre à leurs besoins spécifiques. Sur le plan personnel, ce projet nous a permis de nous familiariser avec plusieurs langages de programmation, et d'appliquer les connaissances acquises durant le cours BIF7101.
+# Résumé
+
+Cet article porte sur la création d'un site web d'inférence d'arbres phylogénétiques, nommé [**Phylodendron.rocks**](https://phylodendron.rocks). Il couvre les divers outils implémentés pour l'alignement, l'inférence phylogénétique et plus encore (conversion de fichiers, visualisation d'arbres). Les raisons pour lesquelles les outils spécifiques ont été sélectionnés ainsi que des tests pour confirmer ces choix sont présentés. Ce projet a été motivé par le constat que le site [**T-REX**](https://www.trex.uqam.ca), recommandé aux étudiants en bioinformatique de l'UQAM pour la réalisation d'analyses phylogénétiques, n'était pas à jour avec les outils les plus récents.
+
+Nous avons implémenté des versions plus récentes de certains outils disponibles sur T-REX, ainsi que des outils supplémentaires qui n'étaient pas inclus. Les performances des outils que nous avons implémentés ont été évaluées à l'aide de jeux de données de référence (BaliBASE) et comparées à celles des outils utilisés sur T-REX. Les résultats montrent une précision et une efficacité de calcul améliorées. 
+
+Le but ultime de ce projet est de faciliter l'analyse phylogénétique pour les utilisateurs, leur offrant un grand éventail de possibilités pour répondre à leurs besoins spécifiques. Sur le plan personnel, ce projet nous a permis de nous familiariser avec plusieurs langages de programmation, et d'appliquer les connaissances acquises durant le cours BIF-7101.
 
 # Introduction et problématique 
 
-L'inférence phylogénétique permet d'étudier les relations évolutives entre les organismes vivants en construisant des arbres à partir de données observées, telles que des séquences d'ADN ou de protéines. Il existe diverses méthodes pour l'inférence, telles que des méthodes de distance, de parcimonie et probabilistes [@phylo]. Un obstacle à ce domaine d'étude est le fait de devoir télécharger de nombreux algorithmes avant l'étape de l'analyse. Cela peut grandement ralentir une étude lorsque nous ne sommes pas familier avec l'informatique. C'est pourquoi il existe des sites webs d'inférence d'arbres phylogénétiques. Cependant, nous avons constaté que la plateforme T-REX, créé par Alix Boc, Alpha Boubacar Diallo et Vladimir Makarenkov, qui détermine l'inférence, la validation et la visualisation d'arbres et de réseaux phylogénétiques [@trex], n’est plus maintenue. En effet, plusieurs méthodes utilisées ont connu des mises à jour qui n’ont pas été reflétées sur le serveur web.  
+L'inférence phylogénétique permet d'étudier les relations évolutives entre les organismes vivants en construisant des arbres à partir de données observées, telles que des séquences d'ADN ou de protéines. Il existe diverses méthodes pour l'inférence, telles que des méthodes de distance, de parcimonie et probabilistes. Un obstacle à ce domaine d'étude est le fait de devoir télécharger de nombreux algorithmes avant l'étape de l'analyse. Cela peut grandement ralentir une étude lorsque nous ne sommes pas familiers avec l'informatique. C'est pourquoi il existe des sites web d'inférence d'arbres phylogénétiques. Cependant, nous avons constaté que la plateforme T-REX, créée par Alix Boc, Alpha Boubacar Diallo et Vladimir Makarenkov, qui déterminent l'inférence, la validation et la visualisation d'arbres et de réseaux phylogénétiques [@trex], n’est plus maintenue. En effet, plusieurs méthodes utilisées ont connu des mises à jour qui n’ont pas été reflétées sur le serveur web. Ce projet est motivé par la nécessité de fournir aux utilisateurs effectuant des analyses phylogénétiques un accès facile aux outils les plus récents. 
 
-## Les objectifs 
+Notre objectif est de répondre à la problématique principale : Quelles méthodes phylogénétiques et quels outils informatiques peuvent être intégrés à une plateforme Web pour améliorer encore l'efficacité et l'utilisabilité des analyses phylogénétiques ?
 
-L'objectif principal de ce projet est d'offir aux utilisateurs des outils qui sont à jour et qui ne sont pas disponibles sur T-REX afin qu'ils puissent recevoir de meilleurs résultats, et ce, souvent plus rapidement. Certes, les anciennes versions peuvent encore fonctionner, mais n'offrent pas le meilleur potentiel aux données. 
-  
-Un second objectif est de créer un site web intuitif et facile d'utilisation. Nous voulons que les utilisateurs puissent télécharger les fichiers produits par les outils d'inférence au besoin et de pouvoir visualiser leurs arbres de diverses manières en leur permettant de changer les paramètres désirés.
+Dans cette optique, l'objectif principal de ce projet est d'offrir aux utilisateurs des outils qui sont à jour et qui ne sont pas disponibles sur T-REX afin qu'ils puissent recevoir de meilleurs résultats, et ce, souvent plus rapidement. Certes, les anciennes versions peuvent encore fonctionner, mais n'offrent pas le meilleur potentiel aux données. Un second objectif est de créer un site web intuitif et facile d'utilisation. Nous voulons que les utilisateurs puissent télécharger les fichiers produits par les outils d'inférence au besoin et de pouvoir visualiser leurs arbres de diverses manières en leur permettant de changer les paramètres désirés. Ce projet est une extension de T-REX et a été développé en référence à «T-REX: a web server for inferring, validating and visualizing phylogenetic trees and networks» [@trex].
+
 
 # Méthodes et matériel 
 
@@ -49,14 +55,13 @@ Un second objectif est de créer un site web intuitif et facile d'utilisation. N
 
 ### Informatique
 
-Nous avons utilisé [**Git**](https://git-scm.com) pour le contrôle de version et le développement collaboratif. Notre *repository* est hébergé sur [GitHub](https://github.com/chelseabaek/BIF7101-projet). 
+Nous avons utilisé [**Git**](https://git-scm.com) pour le contrôle de version et le développement collaboratif. Notre *repository* est hébergé sur [GitHub](https://github.com/chelseabaek/BIF7101-projet).
 
 **Développement backend :**
 
-- **Langage** : Nous avons choisi de développer le site Web en Python parce que nous voulions utiliser la bibliothèque [BioPython](https://biopython.org) [@biopython]. BioPython est un ensemble d'outils de biologie computationnelle et de bioinformatique.
+- **Langage** : Nous avons choisi de développer le site Web en Python parce que nous voulions utiliser la bibliothèque [BioPython](https://biopython.org) [@biopython]. BioPython est un ensemble d’outils de biologie computationnelle et de bioinformatique que nous avons utilisés pour manipuler des fichiers de séquences, lire et valider des arbres de Newick et convertir des données entre différents formats.
 
-- **Framework** : Pour le *framework*, nous avons utilisé **[Flask](https://flask.palletsprojects.com/en/stable/)** pour implémenter la gestion des requêtes et des réponses HTTP.
-
+- **Framework** : Pour le *framework*, nous avons utilisé **[Flask](https://flask.palletsprojects.com/en/stable/)** pour implémenter la gestion des requêtes et des réponses HTTP, organiser les routes du site et connecter le *frontend* du site aux différentes fonctions *backend*.
 
 **Développement frontend :**
 
@@ -68,16 +73,16 @@ Pour développer l'interface utilisateur, nous avons utilisé les trois langages
 
 - **JavaScript** : Permet de rendre le site dynamique et interactif.
 
-De plus, nous avons essayé de respecter les normes d'accessibilité web afin de garantir que la plateforme soit accessible au plus grand nombre. Nous avons utilisé le [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker) pour vérifier que les rapports de contraste *text-to-background* et la taille de la police respectent ou dépassent les normes de WebAIM.
+De plus, nous avons essayé de respecter les normes d'accessibilité web afin de garantir que la plateforme soit accessible au plus grand nombre. Nous avons utilisé le [**WebAIM Contrast Checker**](https://webaim.org/resources/contrastchecker) pour vérifier que les rapports de contraste *text-to-background* et la taille de la police respectent ou dépassent les normes de WebAIM.
 
 **Déploiement : **
 
 - **Configuration de l'environnement :**
   - **Docker :**  Un Dockerfile garantit que toutes les dépendances requises sont installées et configurées de la même manière à chaque exécution, ce qui facilite le déploiement du projet et assure que l’application fonctionne de manière fiable dans n’importe quel environnement, que ce soit en local ou sur un serveur. Notre Dockerfile construit un *container* basé sur Python 3.13, installe et configure les dépendances (MAFFT, Clustal Omega, MrBayes, MUSCLE, IQ-TREE et MPBoot, ainsi que le fichier requirements.txt), puis lance l’application à l’aide de Gunicorn sur le port 8080.
 
-  - **requirements.txt :** contient tous les packages Python nécessaires au projet (`flask`, `gunicorn`, `biopython`, `matplotlib`).
+  - **requirements.txt :** Ce fichier contient tous les *packages* Python nécessaires au projet (`flask`, `gunicorn`, `biopython`, `matplotlib`).
 
-- **Hosting** : Nous hébergeons notre site pour le rendre accessible aux utilisateurs d’Internet. Notre site Web est hébergé sur [DigitalOcean](https://www.digitalocean.com). Nous avons enregistré notre nom de domaine via [Name.com](https://www.name.com) et choisi DigitalOcean pour l'hébergement, en profitant du [GitHub Student Developer Pack](https://education.github.com/pack), qui nous offrait un nom de domaine gratuit pendant un an et 200 $ de crédits DigitalOcean.
+- **Hébergement** : Nous hébergeons notre site pour le rendre accessible aux utilisateurs d’Internet. Notre site Web est hébergé sur [**DigitalOcean**](https://www.digitalocean.com). Nous avons enregistré notre nom de domaine via [**Name.com**](https://www.name.com) et choisi DigitalOcean pour l'hébergement, en profitant du [**GitHub Student Developer Pack**](https://education.github.com/pack), qui nous offrait un nom de domaine gratuit pendant un an et 200 $ de crédits DigitalOcean. (L'environnement d'hébergement offre des ressources de calcul plus limitées que nos ordinateurs, notamment en termes de RAM et de cœurs CPU. Étant donné que certaines analyses phylogénétiques peuvent être intensives, le site Web peut subir des arrêts lors du traitement de grands ensembles de données.)
 
 
 ### Phylogénétique
@@ -86,7 +91,7 @@ Nous nous sommes concentrés sur la mise à jour des outils actuellement propos�
 
 **Inférence d'arbre :** 
 
-Après chaque méthode d'inférence d'arbre, une visualisation de l'arbre est automatiquement générée pour l'utilisateur. Afin d'offrir une expérience plus interactive, nous avons exploré des outils autres que `Phylo.draw()` et `Phylo.draw_ascii()` de BioPython. Pour ce faire, nous avons implémenté [Phylocanvas.gl](https://www.phylocanvas.gl) [@phylocanvas], car il propose des fonctionnalités interactives permettant aux utilisateurs d'explorer et de manipuler les arbres phylogénétiques. En plus d'offrir des options similaires à T-REX, notre implémentation permet également d'ajouter des légendes de figures, de appliquer une représentation circulaire de l’arbre et de télécharger celui-ci (Figure \@ref(fig:options)).
+Après chaque méthode d'inférence d'arbre, une visualisation de l'arbre est automatiquement générée pour l'utilisateur. Afin d'offrir une expérience plus interactive, nous avons exploré des outils autres que `Phylo.draw()` et `Phylo.draw_ascii()` de BioPython. Pour ce faire, nous avons implémenté [Phylocanvas.gl](https://www.phylocanvas.gl) [@phylocanvas], car il propose des fonctionnalités interactives permettant aux utilisateurs d'explorer et de manipuler les arbres phylogénétiques. En plus d'offrir des options similaires à T-REX, notre implémentation permet également d'ajouter des légendes de figures, d'appliquer une représentation circulaire de l’arbre et de télécharger celui-ci (Figure \@ref(fig:options)).
 
 ```{r options, echo=FALSE, out.width="60%", fig.align="center", fig.cap="Options PhyloDendron.rocks (gauche) ; Options T-REX (droite)", fig.pos="H"}
 knitr::include_graphics("images/options.png")
@@ -94,7 +99,7 @@ knitr::include_graphics("images/options.png")
 
 
 
-- **Inférence bayésienne :**  Pour l'inférence bayésienne, plutôt que de rechercher un seul arbre optimal, on explore la distribution postérieure des arbres, longueurs de branches et paramètres du modèle. Nous avons utilisé le logiciel MrBayes [@mrbayes] pour implementer l'inférence bayésienne en phylogénétique. MrBayes utilise des méthodes de MCMC (Markov Chain Monte Carlo) pour approximer cette distribution a posteriori et estimer les phylogénies et les temps de divergence des espèces [@bayesianInference]. Pour construire un arbre de consensus par inférence bayésienne sur notre site Web, l'utilisateur saisit un fichier de séquences alignées (au format FASTA ou NEXUS) ainsi que les paramètres (number of generations, sample frequency, print frequency et number of burn-ins). Si l'utilisateur entre un fichier FASTA, il est automatiquement converti au format NEXUS. Les paramètres par défaut sont également disponibles (Figure \@ref(fig:bayes)). Une fois l'analyse terminée, les arbres de consensus obtenus et les résultats sont compilés dans un fichier ZIP téléchargeable.
+- **Inférence bayésienne :**  Pour l'inférence bayésienne, plutôt que de rechercher un seul arbre optimal, on explore la distribution postérieure des arbres, longueurs de branches et paramètres du modèle. Nous avons utilisé le logiciel MrBayes [@mrbayes] pour implémenter l'inférence bayésienne en phylogénétique. MrBayes utilise des méthodes de MCMC (Markov Chain Monte Carlo) pour approximer cette distribution a posteriori et estimer les phylogénies et les temps de divergence des espèces [@bayesianInference]. Pour construire un arbre de consensus par inférence bayésienne sur notre site Web, l'utilisateur saisit un fichier de séquences alignées (au format FASTA ou NEXUS) ainsi que les paramètres (number of generations, sample frequency, print frequency et number of burn-ins). Si l'utilisateur entre un fichier FASTA, il est automatiquement converti au format NEXUS. Les paramètres par défaut sont également disponibles (Figure \@ref(fig:bayes)). Une fois l'analyse terminée, les arbres de consensus obtenus et les résultats sont compilés dans un fichier ZIP téléchargeable.
 
 ```{r bayes, echo=FALSE, out.width="75%", fig.align="center", fig.cap="Paramètres d'inférence bayésienne",fig.pos="H"}
 knitr::include_graphics("images/pd_bayesian_inf.png")
